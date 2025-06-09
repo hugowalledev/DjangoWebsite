@@ -3,7 +3,6 @@ from django.views import generic
 
 from .models import Tournament,Team,Player,Match
 
-
 class TournamentlistView(generic.ListView):
     template_name = "esport/events.html"
     context_object_name = "tournaments_going"
@@ -17,19 +16,19 @@ class TournamentlistView(generic.ListView):
 
 class MatchesView(generic.DetailView):
     model = Tournament
-    template_name = "esport/matches.html"
+    template_name = "esport/matchlist.html"
 
     def get_queryset(self):
         """
         Show incoming matches.
         """
-        return Tournament.matches
+        return Tournament.objects
 
 class VoteView(generic.DetailView):
-    model = Match
+    model = Tournament
     template_name = "esport/vote.html"
     def get_queryset(self):
         """
         Show incoming matches.
         """
-        return Match.teams
+        return Tournament.objects

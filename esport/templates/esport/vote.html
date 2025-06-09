@@ -1,0 +1,18 @@
+{% load static %}
+<form action="{% url 'esport:vote' tournament.slug %}" method="post">
+{% csrf_token %}
+    <fieldset>
+        {% for match in tournament.match_set.all %}
+            <div>
+                <h1>{{match.name}}</h1>
+                <input type="radio" name="{{match.name}}" id="match_blue" value="{{ match.blue_team.name }}">
+                <label for="match{{forloop.counter}}_blue">{{ match.blue_team.name }}</label>
+                <img src="{{match.blue_team.logo.url}}">
+                <img src="{{match.red_team.logo.url}}">
+                <label for="match{{forloop.counter}}_red">{{ match.red_team.name }}</label>
+                <input type="radio" name="{{match.name}}" id="match_red" value="{{ match.red_team.name }}">
+            </div>
+        {% endfor %}
+    </fieldset>
+    <input type="submit" value="Vote">
+</form>

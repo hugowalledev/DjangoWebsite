@@ -1,0 +1,7 @@
+<ul>
+    <li>{{tournament.name}}</li>
+{% for match in tournament.match_set.all %}
+    <li><a>{{ match.name }}</a></li>
+{% endfor %}
+</ul>
+<a  href="{% url 'esport:vote' tournament.slug %}">Votez Ajd</a>

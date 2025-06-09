@@ -1,7 +1,7 @@
 {% if tournaments_going %}
         <ul>
         {% for tournament in tournaments_going %}
-            <li><a href="{% url 'esport/matches' tournament.id %}">{{ tournament.name }}</a></li>
+            <li><a href="{% url 'esport:matches' tournament.slug %}">{{ tournament.name }}</a></li>
         {% endfor %}
         </ul>
     {% else %}
