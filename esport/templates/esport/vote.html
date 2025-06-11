@@ -1,4 +1,4 @@
-{% load static %}
+
 <form action="{% url 'esport:vote' tournament.slug %}" method="post">
 {% csrf_token %}
     <fieldset>
@@ -6,13 +6,25 @@
             <div>
                 <h1>{{match.name}}</h1>
                 <input type="radio" name="{{match.name}}" id="match_blue" value="{{ match.blue_team.name }}">
-                <label for="match{{forloop.counter}}_blue">{{ match.blue_team.name }}</label>
-                <img src="{{match.blue_team.logo.url}}">
-                <img src="{{match.red_team.logo.url}}">
-                <label for="match{{forloop.counter}}_red">{{ match.red_team.name }}</label>
+                <label for="match{{forloop.counter}}_blue"></label>
+                <img src="{{match.blue_team.logo.url}}" width="50" height="50">
+                <img src="{{match.red_team.logo.url}}" width="50" height="50">
+                <label for="match{{forloop.counter}}_red"></label>
                 <input type="radio" name="{{match.name}}" id="match_red" value="{{ match.red_team.name }}">
             </div>
         {% endfor %}
+        <select name="players" id="players">
+            {% for match in tournament.match_set.all %}
+                <optgroup label="{{match.blue_team.name}}">
+                    {% for player in match.blue_team.player_set.all %}
+                        <option value="{{player.name}}">{{player.name}}</option>
+                    {% endfor %}
+                <optgroup label="{{match.red_team.name}}">
+                    {% for player in match.red_team.player_set.all %}
+                        <option value="{{player.name}}">{{player.name}}</option>
+                    {% endfor %}
+            {% endfor %}
+        </select>
     </fieldset>
     <input type="submit" value="Vote">
 </form>
