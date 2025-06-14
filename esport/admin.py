@@ -7,7 +7,6 @@ from .models import Team, Player, Match, Tournament
 class MatchInline(admin.StackedInline):
     model = Match
     extra = 1
-    prepopulated_fields= {"slug" : ("name",)}
 
 class PlayerInline(admin.StackedInline):
     model = Player
