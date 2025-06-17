@@ -4,6 +4,7 @@ from esport.models import Player
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
-    points = models.IntegerField(default=0)
-    selected_mvps = models.ManyToManyField(Player, blank=True)
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    
+    def __str__(self):
+        return self.user.username
