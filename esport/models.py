@@ -5,6 +5,7 @@ class Tournament(models.Model):
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
     date_started = models.DateTimeField("date started")
+    date_ended = models.DateTimeField("date ended")
     slug = models.SlugField(default=f"{name}")
     def __str__(self):
         return self.name
@@ -50,6 +51,10 @@ class Match(models.Model):
     loser = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="loser_team", blank=True, null=True)
     winner_score = models.PositiveSmallIntegerField(null=True, blank=True)
     loser_score = models.PositiveSmallIntegerField(null=True, blank=True)
+
+    @property
+    def tournament(self):
+        return self.match_day.tournament
 
     def __str__(self):
         return f"{self.red_team.name} VS {self.blue_team.name} ({self.tournament.name})"

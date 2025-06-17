@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+<h1>Prédictions pour le tournoi : {{ tournament.name }}</h1>
+
+<form method="post">
+  {% csrf_token %}
+
+  {% for matchday in matchdays %}
+    <div class="matchday-block">
+      <h2>Journée du {{ matchday.date }}</h2>
+
+      {% for match in matchday.matches.all %}
+        <div class="match-block">
+          <p><strong>{{ match.team1.name }}</strong> vs <strong>{{ match.team2.name }}</strong></p>
+
+          <!-- Prédiction du gagnant -->
+          <label>
+            <input type="radio" name="winner_{{ match.id }}" value="{{ match.team1.id }}"
+              {% if predictions_by_match.match.id == match.id and predictions_by_match.match.id.predicted_winner.id == match.team1.id %}checked{% endif %}>
+            {{ match.team1.name }}
+          </label>
+
+          <label>
+            <input type="radio" name="winner_{{ match.id }}" value="{{ match.team2.id }}"
+              {% if predictions_by_match.match.id == match.id and predictions_by_match.match.id.predicted_winner.id == match.team2.id %}checked{% endif %}>
+            {{ match.team2.name }}
+          </label>
+
+          <!-- Score -->
+          <div class="score-inputs">
+            <label>Score vainqueur :
+              <input type="number" name="score_winner_{{ match.id }}" min="0"
+                     value="{% if predictions_by_match.match.id == match.id %}{{ predictions_by_match.match.id.predicted_score_winner }}{% endif %}">
+            </label>
+
+            <label>Score perdant :
+              <input type="number" name="score_loser_{{ match.id }}" min="0"
+                     value="{% if predictions_by_match.match.id == match.id %}{{ predictions_by_match.match.id.predicted_score_loser }}{% endif %}">
+            </label>
+          </div>
+        </div>
+      {% endfor %}
+
+      <!-- Sélection du joueur fantasy -->
+      <div class="fantasy-block">
+        <label for="fantasy_{{ matchday.id }}"><strong>Choix MVP (fantasy) pour cette journée :</strong></label>
+        <select name="fantasy_{{ matchday.id }}" required>
+          <option value="">-- Sélectionner un joueur --</option>
+          {% for match in matchday.matches.all %}
+            {% for player in match.team1.players.all %}
+              <option value="{{ player.id }}"
+                {% if fantasy_by_day.matchday.id == matchday.id and fantasy_by_day.matchday.id.id == player.id %}selected{% endif %}>
+                {{ player.name }} ({{ match.team1.name }})
+              </option>
+            {% endfor %}
+            {% for player in match.team2.players.all %}
+              <option value="{{ player.id }}"
+                {% if fantasy_by_day.matchday.id == matchday.id and fantasy_by_day.matchday.id.id == player.id %}selected{% endif %}>
+                {{ player.name }} ({{ match.team2.name }})
+              </option>
+            {% endfor %}
+          {% endfor %}
+        </select>
+      </div>
+      <hr>
+    </div>
+  {% endfor %}
+
+  <button type="submit">Enregistrer mes prédictions</button>
+</form>
+
+{% endblock %}
