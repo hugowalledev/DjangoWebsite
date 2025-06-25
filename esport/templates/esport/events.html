@@ -1,4 +1,6 @@
+{% load static tailwind_tags %}
 {% if tournaments_going %}
+    {% tailwind_css %}
         <ul>
         {% for tournament in tournaments_going %}
             <li><a href="{% url 'esport:matches' tournament.slug %}">{{ tournament.name }}</a></li>
