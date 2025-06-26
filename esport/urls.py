@@ -6,5 +6,5 @@ urlpatterns = [
     path("", views.TournamentlistView.as_view(), name="tournamentlist"),
     path("<slug:slug>/", views.MatchesView.as_view(), name="matches"),
     path("<slug:slug>/vote/", views.VoteView.as_view(), name="vote"),
-    path("<slug:slug>/fantasy", views.PredictionView.as_view(), name="prediction"),
+    path("<slug:slug>/fantasy/", views.PredictionView.as_view(), name="prediction"),
 ]

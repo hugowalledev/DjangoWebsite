@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+{% load static tailwind_tags %}
+
+<header class="flex justify-end items-right p-4 bg-gray-800 text-white">
+    {% tailwind_css %}
+    {% if user.is_authenticated %}
+        <span> {{ user.username }} </span>
+        <a href="{% url 'account_logout' %}" class="hover:underline">Log out</a>
+    {% else %}
+        <button onclick="openLoginPopup()" class="hover:underline">Log in</button> /
+        <button onclick="openRegisterPopup()" class="hover:underline">Sign in</button>
+    {% endif %}
+</header>
+
+<!-- Login Popup-->
+<div id="loginPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
+    <div class="bg-white p-4 rounded shadow w-80 relative">
+        <button onclick="closePopup('loginPopup')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+        <h2 class="text-lg font-semibold mb-2">Logging in</h2>
+        <form method="POST" action="{% url 'account_login' %}">
+            {% csrf_token %}
+            {{ login_form.as_p}}
+            <button type="submit" class="btn btn-primary">Log in</button>
+        </form>
+    </div>
+</div>
+
+
+<!-- Register Popup-->
+<div id="registerPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+    <div class="bg-white p-4 rounded shadow w-80">
+        <button onclick="closePopup('registerPopup')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700">&times;</button>
+        <h2 class="text-lg font-semibold mb-2">signing in</h2>
+        <form method="POST" action="{% url 'account_signup' %}">
+            {% csrf_token %}
+            {{ signup_form.as_p}}
+            <button type="submit" class="btn btn-primary">sign in</button>
+        </form>
+    </div>
+</div>
+
+
+<body>
+    {% block content %}
+    {% endblock %}
+</body>
+
+<script>
+function openLoginPopup() {
+    document.getElementById("loginPopup").classList.remove("hidden");
+}
+function openRegisterPopup() {
+    document.getElementById("registerPopup").classList.remove("hidden");
+}
+function closePopup(popupId) {
+    document.getElementById(popupId).classList.add("hidden");
+}
+</script>

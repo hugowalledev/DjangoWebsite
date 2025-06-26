@@ -95,6 +95,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'django.template.context_processors.request',
+                'users.context_processors.auth_forms',
             ],
         },
     },
@@ -169,6 +170,7 @@ SOCIALACCOUNT_PROVIDERS = {
    }
 }
 
+AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings
 SITE_ID = 1
 

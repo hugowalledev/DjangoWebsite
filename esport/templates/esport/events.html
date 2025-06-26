@@ -1,6 +1,7 @@
-{% load static tailwind_tags %}
-{% if tournaments_going %}
-    {% tailwind_css %}
+{% extends "base.html" %}
+
+{% block content %}
+    {% if tournaments_going %}
         <ul>
         {% for tournament in tournaments_going %}
             <li><a href="{% url 'esport:matches' tournament.slug %}">{{ tournament.name }}</a></li>
@@ -9,3 +10,4 @@
     {% else %}
         <p>No tournament now.</p>
     {% endif %}
+{% endblock %}
