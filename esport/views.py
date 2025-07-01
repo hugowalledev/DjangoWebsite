@@ -39,7 +39,6 @@ class VoteView(generic.DetailView):
         """
         return Tournament.objects
 
-@method_decorator(login_required, name='dispatch')
 class PredictionView(View):
     def get(self, request, slug):
         tournament = get_object_or_404(Tournament, slug=slug)
@@ -49,7 +48,7 @@ class PredictionView(View):
 
         # Charger les prédictions existantes de l'utilisateur
         predictions = Prediction.objects.filter(
-            user=request.user.profile,
+            user=request.user,
             match__match_day__in=matchdays
         )
 
@@ -68,9 +67,12 @@ class PredictionView(View):
             "predictions_by_match": predictions_by_match,
             "fantasy_by_day": fantasy_by_day,
         }
-        return render(request, "prediction_form.html", context)
+        return render(request, "esport/fantasy.html", context)
 
     def post(self, request, slug):
+        if not request.user.is_authenticated:
+            return redirect(f"{reverse('account_login')}?next={request.path}")
+
         tournament = get_object_or_404(Tournament, slug=slug)
         today = timezone.now().date()
         matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
@@ -85,7 +87,7 @@ class PredictionView(View):
 
                 if winner_id and score_winner is not None and score_loser is not None:
                     prediction, created = Prediction.objects.get_or_create(
-                        user=request.user.profile,
+                        user=request.user,
                         match=match,
                         defaults={
                             "predicted_winner_id": winner_id,
