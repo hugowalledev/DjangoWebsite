@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static custom_filters %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -8,7 +9,6 @@
 
   <form method="post" class="space-y-8">
     {% csrf_token %}
-
     {% for matchday in matchdays %}
       <div class="bg-white p-6 rounded-xl shadow">
         <h2 class="text-xl font-semibold text-gray-700 mb-4">
@@ -17,36 +17,48 @@
 
         {% for match in matchday.matches.all %}
           <div class="border-t pt-4 mt-4">
-            <p class="text-lg font-medium mb-2">
-              {{ match.team1.name }} vs {{ match.team2.name }}
-            </p>
+            <div class="flex items-center gap-4 mb-2">
+              <!-- Logo red team -->
+              <img src="{{ match.red_team.logo.url }}" alt="{{ match.red_team.name }}" class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm">
+              <span class="text-lg font-semibold text-gray-800">{{ match.red_team.name }}</span>
+              <span class="text-gray-400 text-base mx-2">vs</span>
+              <img src="{{ match.blue_team.logo.url }}" alt="{{ match.blue_team.name }}" class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm">
+              <span class="text-lg font-semibold text-gray-800">{{ match.blue_team.name }}</span>
+            </div>
 
             <!-- Winner Prediction -->
-            <div class="flex gap-4 items-center">
+            <div class="flex gap-4 items-center mt-2">
               <label class="inline-flex items-center gap-2">
-                <input type="radio" name="winner_{{ match.id }}" value="{{ match.team1.id }}"
-                  {% if predictions_by_match.match.id == match.id and predictions_by_match.match.id.predicted_winner.id == match.team1.id %}checked{% endif %}>
-                {{ match.team1.name }}
+                <input type="radio" name="winner_{{ match.id }}" value="{{ match.red_team.id }}"
+                  {% if predictions_by_match|get_item:match.id and predictions_by_match|get_item:match.id.predicted_winner.id == match.red_team.id %}checked{% endif %}>
+                {{ match.red_team.name }}
               </label>
               <label class="inline-flex items-center gap-2">
-                <input type="radio" name="winner_{{ match.id }}" value="{{ match.team2.id }}"
-                  {% if predictions_by_match.match.id == match.id and predictions_by_match.match.id.predicted_winner.id == match.team2.id %}checked{% endif %}>
-                {{ match.team2.name }}
+                <input type="radio" name="winner_{{ match.id }}" value="{{ match.blue_team.id }}"
+                  {% if predictions_by_match|get_item:match.id and predictions_by_match|get_item:match.id.predicted_winner.id == match.blue_team.id %}checked{% endif %}>
+                {{ match.blue_team.name }}
               </label>
             </div>
 
-            <!-- Scores -->
-            <div class="mt-3 grid grid-cols-2 gap-4">
-              <label class="block">
-                <span calss="text-sm text-gray-600">Score vainqueur</span>
-                <input type="number" name="score_winner_{{ match.id }}" min="0" class="form-input mt-1 block w-full"
-                      value="{% if predictions_by_match.match.id == match.id %}{{ predictions_by_match.match.id.predicted_score_winner }}{% endif %}">
-              </label>
-
-              <label>Score perdant :
-                <input type="number" name="score_loser_{{ match.id }}" min="0" class="form-input mt-1 block w-full"
-                      value="{% if predictions_by_match.match.id == match.id %}{{ predictions_by_match.match.id.predicted_score_loser }}{% endif %}">
-              </label>
+            <!-- Nouvelle sélection de score -->
+            <div class="mt-3">
+              {% if match.possible_scores|length == 1 %}
+                <!-- BO1, pas de choix -->
+                <input type="hidden" name="score_{{ match.id }}" value="{{ match.possible_scores.0.0 }}-{{ match.possible_scores.0.1 }}">
+                <span class="text-gray-500 text-sm">Score unique ({{ match.possible_scores.0.0 }}-{{ match.possible_scores.0.1 }})</span>
+              {% else %}
+                <label for="score_{{ match.id }}" class="block text-sm text-gray-600 mb-1">Score exact :</label>
+                <select name="score_{{ match.id }}" class="form-select mt-1 block w-full">
+                  {% for winner, loser in match.possible_scores %}
+                    {% with score_string=winner|stringformat:"s"|add:"-"|add:loser|stringformat:"s" %}
+                      <option value="{{ score_string }}"
+                        {% if predictions_by_match|get_item:match.id and predictions_by_match|get_item:match.id.predicted_score == score_string %}selected{% endif %}>
+                        {{ winner }} - {{ loser }}
+                      </option>
+                    {% endwith %}
+                  {% endfor %}
+                </select>
+              {% endif %}
             </div>
           </div>
         {% endfor %}
@@ -59,18 +71,26 @@
           <select name="fantasy_{{ matchday.id }}" class="form-select w-full" required>
             <option value="">-- Pick a player --</option>
             {% for match in matchday.matches.all %}
-              {% for player in match.team1.players.all %}
-                <option value="{{ player.id }}"
-                  {% if fantasy_by_day.matchday.id == matchday.id and fantasy_by_day.matchday.id.id == player.id %}selected{% endif %}>
-                  {{ player.name }} ({{ match.team1.name }})
-                </option>
-              {% endfor %}
-              {% for player in match.team2.players.all %}
-                <option value="{{ player.id }}"
-                  {% if fantasy_by_day.matchday.id == matchday.id and fantasy_by_day.matchday.id.id == player.id %}selected{% endif %}>
-                  {{ player.name }} ({{ match.team2.name }})
-                </option>
-              {% endfor %}
+              {% if match.red_team.player_set.all %}
+                <optgroup label="{{ match.red_team.name }}">
+                  {% for player in match.red_team.player_set.all %}
+                    <option value="{{ player.id }}"
+                      {% if fantasy_by_day|get_item:matchday.id and fantasy_by_day|get_item:matchday.id.id == player.id %}selected{% endif %}>
+                      {{ player.name }}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+              {% if match.blue_team.player_set.all %}
+                <optgroup label="{{ match.blue_team.name }}">
+                  {% for player in match.blue_team.player_set.all %}
+                    <option value="{{ player.id }}"
+                      {% if fantasy_by_day|get_item:matchday.id and fantasy_by_day|get_item:matchday.id.id == player.id %}selected{% endif %}>
+                      {{ player.name }}
+                    </option>
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
             {% endfor %}
           </select>
         </div>
@@ -84,6 +104,4 @@
     </div>
   </form>
 </div>
-
-
 {% endblock %}

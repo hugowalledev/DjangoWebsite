@@ -1,9 +1,6 @@
 from django.contrib import admin
-
-from .models import Team, Player, Match, Tournament
-
-
-from django.contrib import admin
+from django.urls import reverse
+from django.utils.html import format_html
 from .models import Tournament, MatchDay, Match, Team, Player, Prediction
 
 ### 🎯 INLINE POUR LES JOUEURS DANS UNE ÉQUIPE ###
@@ -40,11 +37,15 @@ class MatchDayInline(admin.StackedInline):
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
-    list_display = ("name", "date_started", "date_ended")
+    list_display = ("name", "date_started", "date_ended", "matchlist_link")  # 👈 nouveau champ
     search_fields = ("name",)
     ordering = ("-date_started",)
     inlines = [MatchDayInline]
 
+    def matchlist_link(self, obj):
+        url = reverse('esport:matchlist', args=[obj.slug])
+        return format_html('<a href="{}" target="_blank">Voir les matchs à venir</a>', url)
+    matchlist_link.short_description = "Matchs à venir"
 
 ### 🎯 ADMIN POUR LES PRÉDICTIONS ###
 @admin.register(Prediction)
@@ -53,8 +54,7 @@ class PredictionAdmin(admin.ModelAdmin):
         "user",
         "match",
         "predicted_winner",
-        "predicted_score_winner",
-        "predicted_score_loser",
+        "predicted_score",
         "fantasy_pick",
         "timestamp"
     )

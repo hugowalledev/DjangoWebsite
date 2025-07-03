@@ -9,6 +9,16 @@ from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
 
 
+    
+def get_possible_scores(match):
+    if match.best_of == 1:
+        return [(1, 0)]  # Score unique pour BO1
+    elif match.best_of == 3:
+        return [(2, 0), (2, 1)]
+    elif match.best_of == 5:
+        return [(3, 0), (3, 1), (3, 2)]
+    return []
+
 class TournamentlistView(generic.ListView):
     template_name = "esport/events.html"
     context_object_name = "tournaments_going"
@@ -20,15 +30,17 @@ class TournamentlistView(generic.ListView):
         return Tournament.objects.order_by("-date_started")
 
 
-class MatchesView(generic.DetailView):
-    model = Tournament
-    template_name = "esport/matchlist.html"
-
-    def get_queryset(self):
-        """
-        Show incoming matches.
-        """
-        return Tournament.objects
+def matchlist(request, slug):
+    tournament = get_object_or_404(Tournament, slug=slug)
+    now = timezone.now()
+    upcoming_matches = Match.objects.filter(
+        match_day__tournament=tournament,
+        scheduled_time__gte=now
+    ).order_by('scheduled_time')
+    return render(request, 'esport/matchlist.html', {
+        'tournament': tournament,
+        'upcoming_matches': upcoming_matches
+    })
 
 class VoteView(generic.DetailView):
     model = Tournament
@@ -45,6 +57,10 @@ class PredictionView(View):
         today = timezone.now().date()
 
         matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
+
+        for matchday in matchdays:
+            for match in matchday.matches.all():
+                match.possible_scores = get_possible_scores(match)
 
         # Charger les prédictions existantes de l'utilisateur
         predictions = Prediction.objects.filter(
@@ -75,35 +91,33 @@ class PredictionView(View):
 
         tournament = get_object_or_404(Tournament, slug=slug)
         today = timezone.now().date()
-        matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
+        matchdays = MatchDay.objects.filter(
+            tournament=tournament, date__gte=today
+        ).order_by("date").prefetch_related("matches")
 
         for matchday in matchdays:
+            fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
+
             for match in matchday.matches.all():
                 match_id = str(match.id)
                 winner_id = request.POST.get(f"winner_{match_id}")
-                score_winner = request.POST.get(f"score_winner_{match_id}")
-                score_loser = request.POST.get(f"score_loser_{match_id}")
-                fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
+                predicted_score = request.POST.get(f"score_{match_id}")
 
-                if winner_id and score_winner is not None and score_loser is not None:
+                if winner_id and predicted_score:
                     prediction, created = Prediction.objects.get_or_create(
                         user=request.user,
                         match=match,
                         defaults={
                             "predicted_winner_id": winner_id,
-                            "predicted_score_winner": score_winner,
-                            "predicted_score_loser": score_loser,
+                            "predicted_score": predicted_score,
                             "fantasy_pick_id": fantasy_pick_id if fantasy_pick_id else None
                         }
                     )
-
-                    # Mise à jour si existait déjà
                     if not created:
                         prediction.predicted_winner_id = winner_id
-                        prediction.predicted_score_winner = score_winner
-                        prediction.predicted_score_loser = score_loser
+                        prediction.predicted_score = predicted_score
                         if fantasy_pick_id:
                             prediction.fantasy_pick_id = fantasy_pick_id
                         prediction.save()
 
-        return redirect("prediction", slug=tournament.slug)
+        return redirect("esport:prediction", slug=tournament.slug)

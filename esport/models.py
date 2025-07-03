@@ -6,21 +6,27 @@ class Tournament(models.Model):
     region = models.CharField(max_length=255)
     date_started = models.DateTimeField("date started")
     date_ended = models.DateTimeField("date ended")
-    slug = models.SlugField(default=f"{name}")
+    slug = models.SlugField(unique=True)
+
+    def save(self, *args, **kwargs):
+        if not self.slug:
+            from django.utils.text import slugify
+            self.slug = slugify(self.name)
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return self.name
-
 
 class Team(models.Model):
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
-    logo = models.ImageField(upload_to="esport/static/teams")
+    logo = models.ImageField(upload_to="teams")
     def __str__(self):
         return self.name
 
 class Player(models.Model):
     name = models.CharField(max_length=255)
-    photo = models.ImageField(upload_to="esport/static/players")
+    photo = models.ImageField(upload_to="players")
     country = models.CharField(max_length=255)
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     def __str__(self):
@@ -29,24 +35,19 @@ class Player(models.Model):
 class MatchDay(models.Model):
     date = models.DateField()
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="days")
-
     class Meta:
         unique_together = ("date", "tournament")
-
     def __str__(self):
         return f"{self.date} - {self.tournament.name}"
-    
 
 class Match(models.Model):
     name = models.CharField(max_length=255)
-    tournament = models.ForeignKey(Tournament,on_delete=models.CASCADE)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
     scheduled_time = models.DateTimeField()
     red_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="red_team")
     blue_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="blue_team")
     best_of = models.PositiveSmallIntegerField(choices=[(1, "BO1"), (3, "BO3"), (5, "BO5")], default=1)
 
-    
     winner = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="winner_team", blank=True, null=True)
     loser = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="loser_team", blank=True, null=True)
     winner_score = models.PositiveSmallIntegerField(null=True, blank=True)
@@ -58,7 +59,6 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.red_team.name} VS {self.blue_team.name} ({self.tournament.name})"
-
 class PlayerStats(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
@@ -78,9 +78,7 @@ class Prediction(models.Model):
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
 
     predicted_winner = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="predicted_match_wins")
-    predicted_score_winner = models.PositiveSmallIntegerField()
-    predicted_score_loser = models.PositiveSmallIntegerField()
-
+    predicted_score = models.CharField(max_length=10)
     fantasy_pick = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True)
 
     is_correct = models.BooleanField(null=True, blank=True)
@@ -98,7 +96,7 @@ class Prediction(models.Model):
             user=user,
             fantasy_pick=player,
             match__tournament=tournament
-        ).exist()
+        ).exists()
 
     def __str__(self):
         return f"{self.user.username} - {self.match} - MVP : {self.fantasy_pick}"

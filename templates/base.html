@@ -1,6 +1,9 @@
 <!DOCTYPE html>
 {% load static tailwind_tags %}
 
+{% load static %}
+<link href="{% static 'theme/css/styles.css' %}" rel="stylesheet">
+
 <header class="flex justify-end items-right p-4 bg-gray-800 text-white">
     {% tailwind_css %}
     {% if user.is_authenticated %}

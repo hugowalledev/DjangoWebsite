@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
@@ -7,12 +8,28 @@
     </h1>
 
     <ul class="space-y-4">
-        {% for match in tournament.match_set.all %}
-            <li class="bg-white rounded-2x1 shadow p-4 hover:bg-gray-50 transition">
-                <span class="text-lg font-semibold text-gray-800">{{ match.name }}</span>
+        {% for match in upcoming_matches %}
+            <li class="bg-white rounded-2xl shadow p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center sm:justify-between">
+                <div  class="flex items-center space-x-3">
+                    <img src="{{ match.red_team.logo.url }}" alt="{{ match.red_team.name }} logo"
+                         class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
+                    <span class="text-lg font-semibold text-gray-800">{{ match.red_team.name }}</span>
+                    <span class="text-sm text-gray-400">vs</span>
+                    <span class="text-lg font-semibold text-gray-800">{{ match.blue_team.name }}</span>
+                    <img src="{{ match.blue_team.logo.url }}" alt="{{ match.blue_team.name }} logo"
+                         class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
+                    <span class="block text-gray-500 text-sm mt-1">Débute à {{ match.scheduled_time|date:"H:i - d/m/Y" }}</span>
+                </div>
+                <div>
+                    <span 
+                        class="font-mono text-blue-600 text-base countdown"
+                        data-time="{{ match.scheduled_time|date:'U' }}">
+                        <!-- Timer JS ici -->
+                    </span>
+                </div>
             </li>
         {% empty %}
-            <li class="text-gray-500">No incoming matches today</li>
+            <li class="text-gray-500">Aucun match à venir pour ce tournoi.</li>
         {% endfor %}
     </ul>
     
@@ -20,13 +37,42 @@
         {% if user.is_authenticated %}
             <a  href="{% url 'esport:prediction' tournament.slug %}"
                 class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl shadow transition">
-                    Vote for incoming matches
+                    Votez sur les prochains matchs
             </a>
         {% else %}
             <a class="inline-block bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-xl shadow transition">
-                You can't vote without logging in
+                Connectez-vous pour voter
             </a>
         {% endif %}
     </div>
 </div>
+
+<!-- Timer JS -->
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    function updateCountdowns() {
+        const now = Math.floor(Date.now() / 1000);
+        document.querySelectorAll(".countdown").forEach(function(span) {
+            const target = parseInt(span.dataset.time);
+            let seconds = target - now;
+            if (seconds <= 0) {
+                span.textContent = "En cours ou terminé";
+            } else {
+                const d = Math.floor(seconds / (3600*24));
+                const h = Math.floor((seconds % (3600*24)) / 3600);
+                const m = Math.floor((seconds % 3600) / 60);
+                const s = seconds % 60;
+                let parts = [];
+                if (d) parts.push(d + "j");
+                if (h) parts.push(h + "h");
+                if (m) parts.push(m + "m");
+                parts.push(s + "s");
+                span.textContent = "Débute dans " + parts.join(" ");
+            }
+        });
+    }
+    updateCountdowns();
+    setInterval(updateCountdowns, 1000);
+});
+</script>
 {% endblock %}
