@@ -59,6 +59,7 @@ class Match(models.Model):
 
     def __str__(self):
         return f"{self.red_team.name} VS {self.blue_team.name} ({self.tournament.name})"
+        
 class PlayerStats(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)

@@ -70,6 +70,8 @@ class PredictionView(View):
 
         # Clé : match.id, Valeur : prédiction
         predictions_by_match = {pred.match.id: pred for pred in predictions}
+        for match_id, prediction in predictions_by_match.items():
+            print(f"match {match_id}: predicted_score={prediction.predicted_score}")
 
         # Clé : match_day.id, Valeur : fantasy pick (Player)
         fantasy_by_day = {
@@ -95,6 +97,7 @@ class PredictionView(View):
             tournament=tournament, date__gte=today
         ).order_by("date").prefetch_related("matches")
 
+        created_count = 0 
         for matchday in matchdays:
             fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
 
@@ -102,6 +105,8 @@ class PredictionView(View):
                 match_id = str(match.id)
                 winner_id = request.POST.get(f"winner_{match_id}")
                 predicted_score = request.POST.get(f"score_{match_id}")
+
+                print("Match", match_id, "Winner", winner_id, "Score", predicted_score, "MVP", fantasy_pick_id)
 
                 if winner_id and predicted_score:
                     prediction, created = Prediction.objects.get_or_create(
@@ -119,5 +124,9 @@ class PredictionView(View):
                         if fantasy_pick_id:
                             prediction.fantasy_pick_id = fantasy_pick_id
                         prediction.save()
+                    else:
+                        created_count += 1
 
-        return redirect("esport:prediction", slug=tournament.slug)
+        print("Nouvelles prédictions créées :", created_count)
+        messages.success(request,"Your pronostics have been saved !")
+        return redirect("esport:matchlist", slug=tournament.slug)

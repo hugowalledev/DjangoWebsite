@@ -45,6 +45,11 @@
             </a>
         {% endif %}
     </div>
+    {% if messages %}
+        {% for message in messages %}
+            <div class="alert alert-success">{{ message }}</div>
+        {% endfor %}
+    {% endif %}
 </div>
 
 <!-- Timer JS -->
