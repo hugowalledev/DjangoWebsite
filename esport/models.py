@@ -80,12 +80,10 @@ class Prediction(models.Model):
 
     predicted_winner = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="predicted_match_wins")
     predicted_score = models.CharField(max_length=10)
-    fantasy_pick = models.ForeignKey(Player, on_delete=models.SET_NULL, null=True, blank=True)
 
     is_correct = models.BooleanField(null=True, blank=True)
     score_correct = models.BooleanField(null=True, blank=True)
     points_awarded = models.FloatField(null=True, blank=True)
-    mvp_points = models.FloatField(null=True, blank=True)
 
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -100,4 +98,29 @@ class Prediction(models.Model):
         ).exists()
 
     def __str__(self):
-        return f"{self.user.username} - {self.match} - MVP : {self.fantasy_pick}"
+        return f"{self.user.username} - {self.match}"
+
+    def calculate_points(self):
+        points = 0
+        if self.predicted_winner == self.match.winner:
+            points += 2
+        if self.predicted_score == f"{self.match.winner_score} - {self.match.loser_score}":
+            points += 3
+        return points
+
+class MVPDayVote(models.Model):
+    user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE)
+    fantasy_pick = models.ForeignKey(Player, on_delete=models.CASCADE)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        unique_together = ("user", "match_day")
+    def calculate_points(self):
+        # On récupère tous les matchs du joueur ce jour-là
+        player_stats = PlayerStats.objects.filter(
+            player=self.fantasy_pick,
+            match__match_day=self.match_day
+        )
+        total_kda = sum(stat.kda() for stat in player_stats)
+        return total_kda

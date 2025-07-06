@@ -1,7 +1,7 @@
 from django.views import generic, View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Match, MatchDay, Prediction, Player, Tournament, Team
+from .models import Match, MatchDay, MVPDayVote, Prediction, Player, Tournament, Team
 from .forms import MatchPredictionForm
 from django.forms import formset_factory
 from django.utils import timezone
@@ -62,28 +62,25 @@ class PredictionView(View):
             for match in matchday.matches.all():
                 match.possible_scores = get_possible_scores(match)
 
-        # Charger les prédictions existantes de l'utilisateur
+        # Load Existing predictions
         predictions = Prediction.objects.filter(
             user=request.user,
             match__match_day__in=matchdays
         )
-
-        # Clé : match.id, Valeur : prédiction
         predictions_by_match = {pred.match.id: pred for pred in predictions}
-        for match_id, prediction in predictions_by_match.items():
-            print(f"match {match_id}: predicted_score={prediction.predicted_score}")
-
-        # Clé : match_day.id, Valeur : fantasy pick (Player)
-        fantasy_by_day = {
-            pred.match.match_day.id: pred.fantasy_pick
-            for pred in predictions if pred.fantasy_pick
-        }
+        
+        # Load Existing fantasy
+        mvp_votes = MVPDayVote.objects.filter(
+            user=request.user,
+            match_day__in=matchdays
+        )
+        mvp_by_day = {vote.match_day.id: vote.fantasy_pick for vote in mvp_votes}
 
         context = {
             "tournament": tournament,
             "matchdays": matchdays,
             "predictions_by_match": predictions_by_match,
-            "fantasy_by_day": fantasy_by_day,
+            "mvp_by_day": mvp_by_day,
         }
         return render(request, "esport/fantasy.html", context)
 
@@ -97,16 +94,20 @@ class PredictionView(View):
             tournament=tournament, date__gte=today
         ).order_by("date").prefetch_related("matches")
 
-        created_count = 0 
         for matchday in matchdays:
-            fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
+            mvp_id = request.POST.get(f"fantasy_{matchday.id}")
+
+            if mvp_id:
+                MVPDayVote.objects.update_or_create(
+                    user=request.user,
+                    match_day=matchday,
+                    defaults={"fantasy_pick_id": mvp_id}
+                )
 
             for match in matchday.matches.all():
                 match_id = str(match.id)
                 winner_id = request.POST.get(f"winner_{match_id}")
                 predicted_score = request.POST.get(f"score_{match_id}")
-
-                print("Match", match_id, "Winner", winner_id, "Score", predicted_score, "MVP", fantasy_pick_id)
 
                 if winner_id and predicted_score:
                     prediction, created = Prediction.objects.get_or_create(
@@ -115,18 +116,12 @@ class PredictionView(View):
                         defaults={
                             "predicted_winner_id": winner_id,
                             "predicted_score": predicted_score,
-                            "fantasy_pick_id": fantasy_pick_id if fantasy_pick_id else None
                         }
                     )
                     if not created:
                         prediction.predicted_winner_id = winner_id
                         prediction.predicted_score = predicted_score
-                        if fantasy_pick_id:
-                            prediction.fantasy_pick_id = fantasy_pick_id
                         prediction.save()
-                    else:
-                        created_count += 1
 
-        print("Nouvelles prédictions créées :", created_count)
         messages.success(request,"Your pronostics have been saved !")
         return redirect("esport:matchlist", slug=tournament.slug)

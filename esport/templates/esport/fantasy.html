@@ -73,9 +73,9 @@
           <label class="block text-sm font-medium text-gray-700 mb-1">
             Today MVP :
           </label>
-          {% with selected_mvp=fantasy_by_day|get_item:matchday.id %}
-            <select name="fantasy_{{ matchday.id }}" class="form-select w-full" required>
-              <option value="">-- Pick a player --</option>
+          <select name="fantasy_{{ matchday.id }}" class="form-select w-full" required>
+            <option value="">-- Pick a player --</option>
+            {% with selected_mvp=mvp_by_day|get_item:matchday.id %}
               {% for match in matchday.matches.all %}
                 {% if match.red_team.player_set.all %}
                   <optgroup label="{{ match.red_team.name }}">
@@ -98,8 +98,8 @@
                   </optgroup>
                 {% endif %}
               {% endfor %}
-            </select>
-          {% endwith %}
+            {% endwith %}
+          </select>
         </div>
       </div>
     {% endfor %}

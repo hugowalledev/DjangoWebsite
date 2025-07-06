@@ -7,7 +7,7 @@
     {% tailwind_css %}
     {% if user.is_authenticated %}
         <span> {{ user.username }} </span>
-        <a href="{% url 'account_logout' %}" class="hover:underline">Log out</a>
+        <a href="{% url 'account_logout' %}" class="hover:underline">(Log out)</a>
     {% else %}
         <button onclick="openLoginPopup()" class="hover:underline">Log in</button> /
         <button onclick="openRegisterPopup()" class="hover:underline">Sign in</button>

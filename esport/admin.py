@@ -1,7 +1,7 @@
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Tournament, MatchDay, Match, Team, Player, Prediction
+from .models import Tournament, MatchDay, Match, MVPDayVote, Team, Player, Prediction
 
 ### 🎯 INLINE POUR LES JOUEURS DANS UNE ÉQUIPE ###
 class PlayerInline(admin.TabularInline):
@@ -55,9 +55,15 @@ class PredictionAdmin(admin.ModelAdmin):
         "match",
         "predicted_winner",
         "predicted_score",
-        "fantasy_pick",
-        "timestamp"
+        "timestamp",
     )
     list_filter = ("match__match_day__tournament", "user")
-    search_fields = ("user__username", "match__team1__name", "match__team2__name", "fantasy_pick__name")
+    search_fields = ("user__username", "match__team1__name", "match__team2__name")
+    ordering = ("-timestamp",)
+
+@admin.register(MVPDayVote)
+class MVPDayVoteAdmin(admin.ModelAdmin):
+    list_display = ("user", "match_day", "fantasy_pick", "timestamp")
+    list_filter = ("match_day__tournament", "fantasy_pick")
+    search_fields = ("user__username", "match_day__tournament__name", "fantasy_pick__name")
     ordering = ("-timestamp",)
