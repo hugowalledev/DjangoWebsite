@@ -1,9 +1,17 @@
+from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Tournament, MatchDay, Match, MVPDayVote, Team, Player, Prediction
 
-### 🎯 INLINE POUR LES JOUEURS DANS UNE ÉQUIPE ###
+import datetime
+
+@admin.action(description="Close selected match(enter winner/scores)")
+def close_matches(modeladmin, request, queryset):
+    for match in queryset:
+        match.is_closed = True
+        match.save()
+
 class PlayerInline(admin.TabularInline):
     model = Player
     extra = 5
@@ -15,11 +23,20 @@ class TeamAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     inlines = [PlayerInline]
 
-### 🎯 INLINE POUR LES MATCHS DANS UN MATCHDAY ###
 class MatchInline(admin.TabularInline):
     model = Match
     extra = 1
-    fields = ("blue_team", "red_team", "scheduled_time", "best_of")
+    actions = [close_matches]
+    fields = (
+        "blue_team",
+        "red_team",
+        "scheduled_hour",
+        "best_of",
+        "winner",
+        "winner_score",
+        "is_closed",
+        )
+    readonly_fields = ()
     show_change_link = True
 
 @admin.register(MatchDay)
@@ -29,7 +46,6 @@ class MatchDayAdmin(admin.ModelAdmin):
     ordering = ("-date",)
     inlines = [MatchInline]
 
-### 🎯 INLINE POUR LES JOURNÉES DANS UN TOURNOI ###
 class MatchDayInline(admin.StackedInline):
     model = MatchDay
     extra = 0
@@ -47,7 +63,6 @@ class TournamentAdmin(admin.ModelAdmin):
         return format_html('<a href="{}" target="_blank">Voir les matchs à venir</a>', url)
     matchlist_link.short_description = "Matchs à venir"
 
-### 🎯 ADMIN POUR LES PRÉDICTIONS ###
 @admin.register(Prediction)
 class PredictionAdmin(admin.ModelAdmin):
     list_display = (

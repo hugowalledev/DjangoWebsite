@@ -1,7 +1,7 @@
 from django.views import generic, View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Match, MatchDay, MVPDayVote, Prediction, Player, Tournament, Team
+from .models import Match, MatchDay, MVPDayVote, MVPResetState, Prediction, Player, PlayerStats, Tournament, Team, UserProfile
 from .forms import MatchPredictionForm
 from django.forms import formset_factory
 from django.utils import timezone
@@ -18,6 +18,43 @@ def get_possible_scores(match):
     elif match.best_of == 5:
         return [(3, 0), (3, 1), (3, 2)]
     return []
+
+def get_leaderboard(tournament):
+    users = UserProfile.objects.all()
+    leaderboard = []
+
+    for user in users:
+        # Points sur les matchs du tournoi
+        predictions = Prediction.objects.filter(
+            user=user,
+            match__match_day__tournament=tournament
+        ).select_related('match', 'predicted_winner')
+        
+        user_points = 0
+        for pred in predictions:
+            user_points += pred.calculate_points()
+
+        # Points Fantasy MVP par journée (somme des KDAs)
+        mvp_votes = MVPDayVote.objects.filter(
+            user=user,
+            match_day__tournament=tournament
+        ).select_related('fantasy_pick', 'match_day')
+
+        mvp_points = 0
+        for vote in mvp_votes:
+            mvp_points += vote.calculate_points()
+
+        total_points = user_points + mvp_points
+
+        leaderboard.append({
+            'user': user,
+            'points': total_points,
+            'match_points': user_points,
+            'mvp_points': mvp_points,
+        })
+    # Classement décroissant
+    leaderboard.sort(key=lambda x: x['points'], reverse=True)
+    return leaderboard
 
 class TournamentlistView(generic.ListView):
     template_name = "esport/events.html"
@@ -37,9 +74,13 @@ def matchlist(request, slug):
         match_day__tournament=tournament,
         scheduled_time__gte=now
     ).order_by('scheduled_time')
+
+    leaderboard = get_leaderboard(tournament)
+
     return render(request, 'esport/matchlist.html', {
         'tournament': tournament,
-        'upcoming_matches': upcoming_matches
+        'upcoming_matches': upcoming_matches,
+        'leaderboard' : leaderboard,
     })
 
 class VoteView(generic.DetailView):
@@ -55,6 +96,10 @@ class PredictionView(View):
     def get(self, request, slug):
         tournament = get_object_or_404(Tournament, slug=slug)
         today = timezone.now().date()
+        reset_state, _ = MVPResetState.objects.get_or_create(tournament=tournament)
+        current_reset = reset_state.reset_id
+
+
 
         matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
 
@@ -69,18 +114,30 @@ class PredictionView(View):
         )
         predictions_by_match = {pred.match.id: pred for pred in predictions}
         
-        # Load Existing fantasy
-        mvp_votes = MVPDayVote.objects.filter(
-            user=request.user,
-            match_day__in=matchdays
+        
+        # Load Existing Fantasy
+        user_picks = set(
+            MVPDayVote.objects.filter(
+                user=request.user,
+                match_day__tournament=tournament,
+                reset_id=current_reset,
+            ).values_list('fantasy_pick_id', flat=True)
         )
-        mvp_by_day = {vote.match_day.id: vote.fantasy_pick for vote in mvp_votes}
+
+        user_mvp_votes = MVPDayVote.objects.filter(
+            user=request.user,
+            match_day__in=matchdays,
+            reset_id=current_reset
+        )
+
+        fantasy_by_day = {vote.match_day.id: vote.fantasy_pick_id for vote in user_mvp_votes}
 
         context = {
             "tournament": tournament,
             "matchdays": matchdays,
             "predictions_by_match": predictions_by_match,
-            "mvp_by_day": mvp_by_day,
+            "already_picked_players": user_picks,
+            "fantasy_by_day": fantasy_by_day,
         }
         return render(request, "esport/fantasy.html", context)
 
@@ -89,19 +146,43 @@ class PredictionView(View):
             return redirect(f"{reverse('account_login')}?next={request.path}")
 
         tournament = get_object_or_404(Tournament, slug=slug)
+        reset_state, created = MVPResetState.objects.get_or_create(tournament=tournament)
+        current_reset = reset_state.reset_id
         today = timezone.now().date()
         matchdays = MatchDay.objects.filter(
             tournament=tournament, date__gte=today
         ).order_by("date").prefetch_related("matches")
 
-        for matchday in matchdays:
-            mvp_id = request.POST.get(f"fantasy_{matchday.id}")
+        picks = []
 
-            if mvp_id:
+        for matchday in matchdays:
+            fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
+            if fantasy_pick_id:
+                picks.append(fantasy_pick_id)
+
+        if len(picks) != len(set(picks)):
+            messages.error(request, "Vous ne pouvez pas choisir deux fois le même joueur comme MVP pour ce tournoi pendant cette période.")
+            return redirect(request.path)
+
+        already_picked = MVPDayVote.objects.filter(
+            user=request.user,
+            match_day__tournament=tournament,
+            fantasy_pick_id__in=picks,
+            reset_id=current_reset,
+        )
+        if already_picked.exists():
+            messages.error(request, "Vous avez déjà choisi au moins un de ces joueurs comme MVP sur ce tournoi pendant cette période.")
+            return redirect(request.path)
+
+        for matchday in matchdays:
+            fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
+
+            if fantasy_pick_id:
                 MVPDayVote.objects.update_or_create(
                     user=request.user,
                     match_day=matchday,
-                    defaults={"fantasy_pick_id": mvp_id}
+                    reset_id=current_reset,
+                    defaults={'fantasy_pick_id': fantasy_pick_id,},
                 )
 
             for match in matchday.matches.all():

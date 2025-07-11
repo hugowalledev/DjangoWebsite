@@ -1,5 +1,7 @@
 from django.db import models
 from datetime import timedelta
+from django.core.exceptions import ValidationError
+import datetime
 
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
@@ -35,6 +37,9 @@ class Player(models.Model):
 class MatchDay(models.Model):
     date = models.DateField()
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="days")
+    points_winner = models.PositiveSmallIntegerField(default=30)
+    points_score = models.PositiveSmallIntegerField(default=15)
+    
     class Meta:
         unique_together = ("date", "tournament")
     def __str__(self):
@@ -43,7 +48,8 @@ class MatchDay(models.Model):
 class Match(models.Model):
     name = models.CharField(max_length=255)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
-    scheduled_time = models.DateTimeField()
+    scheduled_hour = models.TimeField()
+    scheduled_time = models.DateTimeField(editable=False)
     red_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="red_team")
     blue_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="blue_team")
     best_of = models.PositiveSmallIntegerField(choices=[(1, "BO1"), (3, "BO3"), (5, "BO5")], default=1)
@@ -53,13 +59,17 @@ class Match(models.Model):
     winner_score = models.PositiveSmallIntegerField(null=True, blank=True)
     loser_score = models.PositiveSmallIntegerField(null=True, blank=True)
 
+    is_closed = models.BooleanField(default=False)
+    
     @property
     def tournament(self):
         return self.match_day.tournament
-
     def __str__(self):
         return f"{self.red_team.name} VS {self.blue_team.name} ({self.tournament.name})"
-        
+    def save(self, *args, **kwargs):
+        self.scheduled_time = datetime.datetime.combine(self.match_day.date, self.scheduled_hour)
+        super().save(*args, **kwargs)
+
 class PlayerStats(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
@@ -83,7 +93,6 @@ class Prediction(models.Model):
 
     is_correct = models.BooleanField(null=True, blank=True)
     score_correct = models.BooleanField(null=True, blank=True)
-    points_awarded = models.FloatField(null=True, blank=True)
 
     timestamp = models.DateTimeField(auto_now_add=True)
 
@@ -101,11 +110,12 @@ class Prediction(models.Model):
         return f"{self.user.username} - {self.match}"
 
     def calculate_points(self):
+        matchday = self.match.match_day
         points = 0
         if self.predicted_winner == self.match.winner:
-            points += 2
+            points += matchday.points_winner
         if self.predicted_score == f"{self.match.winner_score} - {self.match.loser_score}":
-            points += 3
+            points += matchday.points_score
         return points
 
 class MVPDayVote(models.Model):
@@ -113,9 +123,10 @@ class MVPDayVote(models.Model):
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE)
     fantasy_pick = models.ForeignKey(Player, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
+    reset_id = models.PositiveIntegerField(default=0)
     
     class Meta:
-        unique_together = ("user", "match_day")
+        unique_together = ("user", "match_day", "fantasy_pick", "reset_id")
     def calculate_points(self):
         # On récupère tous les matchs du joueur ce jour-là
         player_stats = PlayerStats.objects.filter(
@@ -124,3 +135,7 @@ class MVPDayVote(models.Model):
         )
         total_kda = sum(stat.kda() for stat in player_stats)
         return total_kda
+
+class MVPResetState(models.Model):
+    tournament = models.OneToOneField(Tournament, on_delete=models.CASCADE)
+    reset_id = models.PositiveIntegerField(default=0)

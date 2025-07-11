@@ -45,6 +45,34 @@
             </a>
         {% endif %}
     </div>
+    <div class="max-w-2xl mx-auto my-8">
+        <h2 class="text-xl font-bold text-gray-700 mb-4 text-center">Leaderboard</h2>
+        <table class="min-w-full bg-white rounded-xl shadow">
+            <thead>
+            <tr>
+                <th class="px-4 py-2">#</th>
+                <th class="px-4 py-2 text-left">Utilisateur</th>
+                <th class="px-4 py-2 text-center">Points totaux</th>
+                <th class="px-4 py-2 text-center">Matchs</th>
+                <th class="px-4 py-2 text-center">MVP</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for entry in leaderboard %}
+                <tr class="{% if forloop.first %}bg-yellow-100{% elif forloop.counter == 2 %}bg-gray-100{% elif forloop.counter == 3 %}bg-orange-50{% endif %}">
+                <td class="px-4 py-2 text-center font-semibold">{{ forloop.counter }}</td>
+                <td class="px-4 py-2">{{ entry.user.username }}</td>
+                <td class="px-4 py-2 text-center font-bold">{{ entry.points|floatformat:"0" }}</td>
+                <td class="px-4 py-2 text-center text-blue-700">{{ entry.match_points|floatformat:"0" }}</td>
+                <td class="px-4 py-2 text-center text-purple-700">{{ entry.mvp_points|floatformat:"1" }}</td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="5" class="text-center text-gray-500 py-4">Aucun participant pour ce tournoi.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
     {% if messages %}
         {% for message in messages %}
             <div class="alert alert-success">{{ message }}</div>

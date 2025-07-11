@@ -2,7 +2,43 @@
 {% load static custom_filters %}
 
 {% block content %}
+
 <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+  {% if messages %}
+    <div id="django-messages" class="fixed top-8 right-8 z-50">
+      {% for message in messages %}
+        <div class="mb-4 px-6 py-4 rounded-xl shadow-xl
+                    {% if message.tags == 'error' %} bg-red-500 text-white
+                    {% elif message.tags == 'success' %} bg-green-500 text-white
+                    {% elif message.tags == 'warning' %} bg-yellow-400 text-black
+                    {% else %} bg-gray-700 text-white {% endif %}"
+            role="alert">
+          <div class="flex items-center">
+            {% if message.tags == 'error' %}
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+              </svg>
+            {% elif message.tags == 'success' %}
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+              </svg>
+            {% endif %}
+            <span>{{ message }}</span>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+    <script>
+      // Auto-hide le toast après 4 secondes
+      setTimeout(function() {
+        var box = document.getElementById('django-messages');
+        if (box) box.style.display = 'none';
+      }, 4000);
+    </script>
+  {% endif %}
+
+
   <h1 class="text-3xl font-bold text-gray-800 text-center mb-8">
     Predictions for tournament : {{ tournament.name }}
   </h1>
@@ -75,31 +111,34 @@
           </label>
           <select name="fantasy_{{ matchday.id }}" class="form-select w-full" required>
             <option value="">-- Pick a player --</option>
-            {% with selected_mvp=mvp_by_day|get_item:matchday.id %}
-              {% for match in matchday.matches.all %}
-                {% if match.red_team.player_set.all %}
-                  <optgroup label="{{ match.red_team.name }}">
-                    {% for player in match.red_team.player_set.all %}
+            {% for match in matchday.matches.all %}
+              {% if match.red_team.player_set.all %}
+                <optgroup label="{{ match.red_team.name }}">
+                  {% for player in match.red_team.player_set.all %}
+                    {% if player.id not in already_picked_players or fantasy_by_day|get_item:matchday.id == player.id %}
                       <option value="{{ player.id }}"
-                        {% if selected_mvp and selected_mvp.id == player.id %}selected{% endif %}>
+                        {% if fantasy_by_day|get_item:matchday.id == player.id %}selected{% endif %}>
                         {{ player.name }}
                       </option>
-                    {% endfor %}
-                  </optgroup>
-                {% endif %}
-                {% if match.blue_team.player_set.all %}
-                  <optgroup label="{{ match.blue_team.name }}">
-                    {% for player in match.blue_team.player_set.all %}
+                    {% endif %}
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+              {% if match.blue_team.player_set.all %}
+                <optgroup label="{{ match.blue_team.name }}">
+                  {% for player in match.blue_team.player_set.all %}
+                    {% if player.id not in already_picked_players or fantasy_by_day|get_item:matchday.id == player.id %}
                       <option value="{{ player.id }}"
-                        {% if selected_mvp and selected_mvp.id == player.id %}selected{% endif %}>
+                        {% if fantasy_by_day|get_item:matchday.id == player.id %}selected{% endif %}>
                         {{ player.name }}
                       </option>
-                    {% endfor %}
-                  </optgroup>
-                {% endif %}
-              {% endfor %}
-            {% endwith %}
+                    {% endif %}
+                  {% endfor %}
+                </optgroup>
+              {% endif %}
+            {% endfor %}
           </select>
+
         </div>
       </div>
     {% endfor %}
@@ -118,3 +157,45 @@
   </form>
 </div>
 {% endblock %}
+
+
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const selects = document.querySelectorAll('select[name^="fantasy_"]');
+    function checkForDuplicates() {
+        const values = [];
+        let hasDuplicate = false;
+        selects.forEach(sel => {
+            if(sel.value) {
+                if(values.includes(sel.value)) {
+                    hasDuplicate = true;
+                    sel.classList.add("border-red-500");
+                } else {
+                    sel.classList.remove("border-red-500");
+                }
+                values.push(sel.value);
+            }
+        });
+        const msg = document.getElementById('mvp-duplicate-warning');
+        if(hasDuplicate) {
+            msg.style.display = '';
+        } else {
+            msg.style.display = 'none';
+        }
+        return !hasDuplicate;
+    }
+    selects.forEach(sel => sel.addEventListener('change', checkForDuplicates));
+    checkForDuplicates();
+    // Bloque la soumission si erreur
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if(!checkForDuplicates()) {
+            e.preventDefault();
+            alert("Vous ne pouvez pas choisir deux fois le même joueur comme MVP sur cette période.");
+        }
+    });
+});
+</script>
+<div id="mvp-duplicate-warning" class="text-red-600 mb-4" style="display:none;">
+  ⚠️ Vous avez sélectionné le même joueur deux fois pour les MVP. Veuillez corriger avant d’enregistrer.
+</div>
