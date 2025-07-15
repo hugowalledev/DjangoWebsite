@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load static %}
+{% load static custom_filters %}
 
 {% block content %}
 <div class="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
@@ -7,24 +8,53 @@
         {{ tournament.name }}
     </h1>
 
-    <ul class="space-y-4">
+   <ul class="space-y-4">
         {% for match in upcoming_matches %}
-            <li class="bg-white rounded-2xl shadow p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center sm:justify-between">
-                <div  class="flex items-center space-x-3">
-                    <img src="{{ match.red_team.logo.url }}" alt="{{ match.red_team.name }} logo"
-                         class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                    <span class="text-lg font-semibold text-gray-800">{{ match.red_team.name }}</span>
-                    <span class="text-sm text-gray-400">vs</span>
-                    <span class="text-lg font-semibold text-gray-800">{{ match.blue_team.name }}</span>
-                    <img src="{{ match.blue_team.logo.url }}" alt="{{ match.blue_team.name }} logo"
-                         class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                    <span class="block text-gray-500 text-sm mt-1">Débute à {{ match.scheduled_time|date:"H:i - d/m/Y" }}</span>
+            <li class="bg-white rounded-2xl shadow p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <!-- Match info -->
+                <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-1">
+                    <!-- Teams & logos -->
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <img src="{{ match.red_team.logo.url }}" alt="{{ match.red_team.name }} logo"
+                            class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
+                        <span class="text-lg font-semibold text-gray-800">{{ match.red_team.name }}</span>
+                    </div>
+                    <span class="mx-2 text-base text-gray-400 font-semibold">vs</span>
+                    <div class="flex items-center gap-2 flex-shrink-0">
+                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_team.name }}</span>
+                        <img src="{{ match.blue_team.logo.url }}" alt="{{ match.blue_team.name }} logo"
+                            class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
+                    </div>
+
+                    <!-- Prediction badge (on mobile: goes below) -->
+                    <div class="sm:ml-6 mt-2 sm:mt-0 flex items-center">
+                        {% with prediction=user_predictions|get_item:match.id %}
+                            {% if user.is_authenticated and prediction %}
+                                <span class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded bg-green-100 text-green-800 text-xs font-semibold cursor-pointer relative"
+                                    onmouseenter="showDetailTooltip({{ match.id }})"
+                                    onmouseleave="hideDetailTooltip({{ match.id }})">
+                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                                    </svg>
+                                    Pronostiqué
+                                    <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-4 py-2 shadow-xl whitespace-nowrap">
+                                        Prediction: {{ prediction.predicted_winner.name }} ({{ prediction.predicted_score }})
+                                    </span>
+                                </span>
+                            {% endif %}
+                        {% endwith %}
+                    </div>
                 </div>
-                <div>
+
+                <!-- Date + timer -->
+                <div class="flex flex-col items-end min-w-max mt-4 sm:mt-0">
+                    <span class="block text-gray-500 text-sm">
+                        Débute à {{ match.scheduled_time|date:"H:i - d/m/Y" }}
+                    </span>
                     <span 
                         class="font-mono text-blue-600 text-base countdown"
                         data-time="{{ match.scheduled_time|date:'U' }}">
-                        <!-- Timer JS ici -->
+                        <!-- Timer JS -->
                     </span>
                 </div>
             </li>
@@ -32,19 +62,34 @@
             <li class="text-gray-500">Aucun match à venir pour ce tournoi.</li>
         {% endfor %}
     </ul>
+
     
     <div class="mt-8 text-center">
         {% if user.is_authenticated %}
-            <a  href="{% url 'esport:prediction' tournament.slug %}"
-                class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl shadow transition">
-                    Votez sur les prochains matchs
-            </a>
+            {% if upcoming_matches %}
+                {% if has_voted_all %}
+                    <a href="{% url 'esport:prediction' tournament.slug %}"
+                    class="inline-block bg-green-600 hover:bg-green-700 text-white font-semibold py-2 px-4 rounded-xl shadow transition">
+                        Change your pronostics
+                    </a>
+                {% else %}
+                    <a href="{% url 'esport:prediction' tournament.slug %}"
+                    class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-xl shadow transition">
+                        Vote for next games
+                    </a>
+                {% endif %}
+            {% else %}
+                <span class="inline-block bg-gray-300 text-gray-500 font-semibold py-2 px-4 rounded-xl shadow transition cursor-not-allowed opacity-60">
+                    No vote incoming
+                </span>
+            {% endif %}
         {% else %}
             <a class="inline-block bg-gray-300 hover:bg-gray-400 text-gray-800 font-medium py-2 px-4 rounded-xl shadow transition">
-                Connectez-vous pour voter
+                Sign in if you want to vote
             </a>
         {% endif %}
     </div>
+
     <div class="max-w-2xl mx-auto my-8">
         <h2 class="text-xl font-bold text-gray-700 mb-4 text-center">Leaderboard</h2>
         <table class="min-w-full bg-white rounded-xl shadow">
@@ -82,30 +127,42 @@
 
 <!-- Timer JS -->
 <script>
-document.addEventListener("DOMContentLoaded", function() {
-    function updateCountdowns() {
-        const now = Math.floor(Date.now() / 1000);
-        document.querySelectorAll(".countdown").forEach(function(span) {
-            const target = parseInt(span.dataset.time);
-            let seconds = target - now;
-            if (seconds <= 0) {
-                span.textContent = "En cours ou terminé";
-            } else {
-                const d = Math.floor(seconds / (3600*24));
-                const h = Math.floor((seconds % (3600*24)) / 3600);
-                const m = Math.floor((seconds % 3600) / 60);
-                const s = seconds % 60;
-                let parts = [];
-                if (d) parts.push(d + "j");
-                if (h) parts.push(h + "h");
-                if (m) parts.push(m + "m");
-                parts.push(s + "s");
-                span.textContent = "Débute dans " + parts.join(" ");
-            }
-        });
+    document.addEventListener("DOMContentLoaded", function() {
+        function updateCountdowns() {
+            const now = Math.floor(Date.now() / 1000);
+            document.querySelectorAll(".countdown").forEach(function(span) {
+                const target = parseInt(span.dataset.time);
+                let seconds = target - now;
+                if (seconds <= 0) {
+                    span.textContent = "En cours ou terminé";
+                } else {
+                    const d = Math.floor(seconds / (3600*24));
+                    const h = Math.floor((seconds % (3600*24)) / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = seconds % 60;
+                    let parts = [];
+                    if (d) parts.push(d + "j");
+                    if (h) parts.push(h + "h");
+                    if (m) parts.push(m + "m");
+                    parts.push(s + "s");
+                    span.textContent = "Débute dans " + parts.join(" ");
+                }
+            });
+        }
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
+    });
+    function showDetailTooltip(matchId) {
+        var tooltip = document.getElementById("tooltip-" + matchId);
+        if (tooltip) {
+            tooltip.classList.remove("hidden");
+        }
     }
-    updateCountdowns();
-    setInterval(updateCountdowns, 1000);
-});
+    function hideDetailTooltip(matchId) {
+        var tooltip = document.getElementById("tooltip-" + matchId);
+        if (tooltip) {
+            tooltip.classList.add("hidden");
+        }
+    }
 </script>
 {% endblock %}

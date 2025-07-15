@@ -7,42 +7,42 @@ from django.forms import formset_factory
 from django.utils import timezone
 from django.contrib.auth.decorators import login_required
 from django.utils.decorators import method_decorator
-
-
-    
-def get_possible_scores(match):
-    if match.best_of == 1:
-        return [(1, 0)]  # Score unique pour BO1
-    elif match.best_of == 3:
-        return [(2, 0), (2, 1)]
-    elif match.best_of == 5:
-        return [(3, 0), (3, 1), (3, 2)]
-    return []
+from .utils import get_possible_scores 
 
 def get_leaderboard(tournament):
-    users = UserProfile.objects.all()
+    # Only users who have at least one Prediction or MVPDayVote for this tournament
+    prediction_users = set(
+        Prediction.objects.filter(
+            match__match_day__tournament=tournament
+        ).values_list('user_id', flat=True)
+    )
+    mvp_users = set(
+        MVPDayVote.objects.filter(
+            match_day__tournament=tournament
+        ).values_list('user_id', flat=True)
+    )
+    participating_user_ids = prediction_users | mvp_users  # union
+
+    users = UserProfile.objects.filter(id__in=participating_user_ids)
+
     leaderboard = []
 
     for user in users:
-        # Points sur les matchs du tournoi
+        # Points from match predictions
         predictions = Prediction.objects.filter(
             user=user,
             match__match_day__tournament=tournament
         ).select_related('match', 'predicted_winner')
         
-        user_points = 0
-        for pred in predictions:
-            user_points += pred.calculate_points()
+        user_points = sum(pred.calculate_points() for pred in predictions)
 
-        # Points Fantasy MVP par journée (somme des KDAs)
+        # Points from fantasy MVPs
         mvp_votes = MVPDayVote.objects.filter(
             user=user,
             match_day__tournament=tournament
         ).select_related('fantasy_pick', 'match_day')
 
-        mvp_points = 0
-        for vote in mvp_votes:
-            mvp_points += vote.calculate_points()
+        mvp_points = sum(vote.calculate_points() for vote in mvp_votes)
 
         total_points = user_points + mvp_points
 
@@ -52,9 +52,11 @@ def get_leaderboard(tournament):
             'match_points': user_points,
             'mvp_points': mvp_points,
         })
-    # Classement décroissant
+
+    # Sort descending by points
     leaderboard.sort(key=lambda x: x['points'], reverse=True)
     return leaderboard
+
 
 class TournamentlistView(generic.ListView):
     template_name = "esport/events.html"
@@ -77,10 +79,23 @@ def matchlist(request, slug):
 
     leaderboard = get_leaderboard(tournament)
 
+    user_predictions = {}
+    has_voted_all = False
+    if request.user.is_authenticated:
+        user_predictions_qs = Prediction.objects.filter(
+            user=request.user,
+            match__in=upcoming_matches
+        )
+        user_predictions = {p.match_id: p for p in user_predictions_qs}
+        has_voted_all = upcoming_matches.count() > 0 and user_predictions_qs.count() == upcoming_matches.count()
+    # -------------------------------------
+
     return render(request, 'esport/matchlist.html', {
         'tournament': tournament,
         'upcoming_matches': upcoming_matches,
         'leaderboard' : leaderboard,
+        'user_predictions': user_predictions,
+        'has_voted_all': has_voted_all,
     })
 
 class VoteView(generic.DetailView):
@@ -142,6 +157,7 @@ class PredictionView(View):
         return render(request, "esport/fantasy.html", context)
 
     def post(self, request, slug):
+        # Redirect if not authenticated
         if not request.user.is_authenticated:
             return redirect(f"{reverse('account_login')}?next={request.path}")
 
@@ -149,40 +165,50 @@ class PredictionView(View):
         reset_state, created = MVPResetState.objects.get_or_create(tournament=tournament)
         current_reset = reset_state.reset_id
         today = timezone.now().date()
+
+        # Get all upcoming matchdays (future or today)
         matchdays = MatchDay.objects.filter(
             tournament=tournament, date__gte=today
         ).order_by("date").prefetch_related("matches")
 
-        picks = []
-
+        # Collect submitted fantasy picks by matchday
+        picks_by_day = {}
         for matchday in matchdays:
             fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
             if fantasy_pick_id:
-                picks.append(fantasy_pick_id)
+                picks_by_day[matchday.id] = int(fantasy_pick_id)
 
-        if len(picks) != len(set(picks)):
-            messages.error(request, "Vous ne pouvez pas choisir deux fois le même joueur comme MVP pour ce tournoi pendant cette période.")
-            return redirect(request.path)
-
-        already_picked = MVPDayVote.objects.filter(
+        # Load all existing MVPDayVotes for this tournament & reset
+        existing_votes = MVPDayVote.objects.filter(
             user=request.user,
             match_day__tournament=tournament,
-            fantasy_pick_id__in=picks,
             reset_id=current_reset,
         )
-        if already_picked.exists():
-            messages.error(request, "Vous avez déjà choisi au moins un de ces joueurs comme MVP sur ce tournoi pendant cette période.")
+
+        # Set of already picked players for other matchdays
+        already_picked = set(existing_votes.values_list('fantasy_pick_id', flat=True))
+
+        # For each matchday, if the fantasy_pick hasn't changed, ignore that player in the duplicate check
+        for vote in existing_votes:
+            if picks_by_day.get(vote.match_day.id) == vote.fantasy_pick_id:
+                already_picked.discard(vote.fantasy_pick_id)
+
+        # Check for duplicate fantasy_pick in the whole submission (can't pick the same player twice, except for its own day)
+        submitted_picks = set(picks_by_day.values())
+        if already_picked & submitted_picks:
+            messages.error(request, "You already picked at least one of these players as MVP for this tournament in this period.")
             return redirect(request.path)
 
+        # Now process the votes
         for matchday in matchdays:
             fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
-
             if fantasy_pick_id:
+                # Create or update the MVPDayVote for this matchday
                 MVPDayVote.objects.update_or_create(
                     user=request.user,
                     match_day=matchday,
                     reset_id=current_reset,
-                    defaults={'fantasy_pick_id': fantasy_pick_id,},
+                    defaults={'fantasy_pick_id': fantasy_pick_id},
                 )
 
             for match in matchday.matches.all():
@@ -191,6 +217,7 @@ class PredictionView(View):
                 predicted_score = request.POST.get(f"score_{match_id}")
 
                 if winner_id and predicted_score:
+                    # Create or update the Prediction
                     prediction, created = Prediction.objects.get_or_create(
                         user=request.user,
                         match=match,
@@ -204,5 +231,5 @@ class PredictionView(View):
                         prediction.predicted_score = predicted_score
                         prediction.save()
 
-        messages.success(request,"Your pronostics have been saved !")
+        messages.success(request, "Your pronostics have been saved!")
         return redirect("esport:matchlist", slug=tournament.slug)

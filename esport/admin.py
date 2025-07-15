@@ -3,6 +3,7 @@ from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
 from .models import Tournament, MatchDay, Match, MVPDayVote, Team, Player, Prediction
+from .utils import get_possible_scores
 
 import datetime
 
@@ -23,7 +24,30 @@ class TeamAdmin(admin.ModelAdmin):
     search_fields = ("name",)
     inlines = [PlayerInline]
 
+class MatchAdminForm(forms.ModelForm):
+    class Meta:
+        model = Match
+        fields = '__all__'
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+
+        match = self.instance
+        bo = match.best_of if match.pk else self.initial.get('best_of', 1)
+        possible_scores = get_possible_scores(match) if match.pk else get_possible_scores(type('Dummy', (), {'best_of': bo})())
+        choices = [("", "---")] + [
+            (f"{w} - {l}", f"{w} - {l}") for w, l in possible_scores
+        ]
+        self.fields['score_str'] = forms.ChoiceField(
+            choices=choices,
+            required=False,
+            label="Official score (format X - Y)",
+            initial=match.score_str if match.pk else None
+        )
+
 class MatchInline(admin.TabularInline):
+    form = MatchAdminForm
     model = Match
     extra = 1
     actions = [close_matches]
@@ -33,10 +57,9 @@ class MatchInline(admin.TabularInline):
         "scheduled_hour",
         "best_of",
         "winner",
-        "winner_score",
+        "score_str",
         "is_closed",
         )
-    readonly_fields = ()
     show_change_link = True
 
 @admin.register(MatchDay)

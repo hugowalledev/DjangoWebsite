@@ -112,33 +112,40 @@
           <select name="fantasy_{{ matchday.id }}" class="form-select w-full" required>
             <option value="">-- Pick a player --</option>
             {% for match in matchday.matches.all %}
-              {% if match.red_team.player_set.all %}
-                <optgroup label="{{ match.red_team.name }}">
-                  {% for player in match.red_team.player_set.all %}
-                    {% if player.id not in already_picked_players or fantasy_by_day|get_item:matchday.id == player.id %}
-                      <option value="{{ player.id }}"
-                        {% if fantasy_by_day|get_item:matchday.id == player.id %}selected{% endif %}>
-                        {{ player.name }}
-                      </option>
-                    {% endif %}
-                  {% endfor %}
-                </optgroup>
-              {% endif %}
-              {% if match.blue_team.player_set.all %}
-                <optgroup label="{{ match.blue_team.name }}">
-                  {% for player in match.blue_team.player_set.all %}
-                    {% if player.id not in already_picked_players or fantasy_by_day|get_item:matchday.id == player.id %}
-                      <option value="{{ player.id }}"
-                        {% if fantasy_by_day|get_item:matchday.id == player.id %}selected{% endif %}>
-                        {{ player.name }}
-                      </option>
-                    {% endif %}
-                  {% endfor %}
-                </optgroup>
-              {% endif %}
+              {% with current_pick=fantasy_by_day|get_item:matchday.id %}
+                {# --- RED TEAM --- #}
+                {% if match.red_team.player_set.all %}
+                  <optgroup label="{{ match.red_team.name }}">
+                    {% for player in match.red_team.player_set.all %}
+                      {% if player.id not in already_picked_players %}
+                        <option value="{{ player.id }}"
+                          {% if current_pick == player.id %}selected{% endif %}>
+                          {{ player.name }}
+                        </option>
+                      {% elif current_pick == player.id %}
+                        <option value="{{ player.id }}" selected>{{ player.name }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </optgroup>
+                {% endif %}
+                {# --- BLUE TEAM --- #}
+                {% if match.blue_team.player_set.all %}
+                  <optgroup label="{{ match.blue_team.name }}">
+                    {% for player in match.blue_team.player_set.all %}
+                      {% if player.id not in already_picked_players %}
+                        <option value="{{ player.id }}"
+                          {% if current_pick == player.id %}selected{% endif %}>
+                          {{ player.name }}
+                        </option>
+                      {% elif current_pick == player.id %}
+                        <option value="{{ player.id }}" selected>{{ player.name }}</option>
+                      {% endif %}
+                    {% endfor %}
+                  </optgroup>
+                {% endif %}
+              {% endwith %}
             {% endfor %}
           </select>
-
         </div>
       </div>
     {% endfor %}

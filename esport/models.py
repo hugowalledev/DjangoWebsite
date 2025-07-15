@@ -58,6 +58,7 @@ class Match(models.Model):
     loser = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="loser_team", blank=True, null=True)
     winner_score = models.PositiveSmallIntegerField(null=True, blank=True)
     loser_score = models.PositiveSmallIntegerField(null=True, blank=True)
+    score_str = models.CharField(max_length=10, blank=True, null=True)
 
     is_closed = models.BooleanField(default=False)
     
@@ -114,7 +115,7 @@ class Prediction(models.Model):
         points = 0
         if self.predicted_winner == self.match.winner:
             points += matchday.points_winner
-        if self.predicted_score == f"{self.match.winner_score} - {self.match.loser_score}":
+        if self.predicted_score == self.match.score_str:
             points += matchday.points_score
         return points
 
