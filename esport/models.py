@@ -74,6 +74,7 @@ class Match(models.Model):
 class PlayerStats(models.Model):
     player = models.ForeignKey(Player, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
+    champion = models.ForeignKey('Champion', on_delete=models.SET_NULL, null=True, blank=True, related_name="playerstats")
     kills = models.PositiveIntegerField(default=0)
     deaths = models.PositiveIntegerField(default=0)
     assists = models.PositiveIntegerField(default=0)
@@ -81,6 +82,15 @@ class PlayerStats(models.Model):
     def kda(self):
         return (self.kills + self.assists) / max(1, self.deaths)
 
+    def __str__(self):
+        return f"{self.player} in {self.match} ({self.champion or 'No Champion'})"
+
+class Champion(models.Model):
+    name = models.CharField(max_length=50, unique=True)
+    image = models.ImageField(upload_to="champions", blank=True, null=True)
+
+    def __str__(self):
+        return self.name
 
 from users.models import UserProfile
 

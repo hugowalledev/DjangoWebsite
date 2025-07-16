@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Tournament, MatchDay, Match, MVPDayVote, Team, Player, Prediction
+from .models import Champion, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction
 from .utils import get_possible_scores
 
 import datetime
@@ -86,6 +86,23 @@ class TournamentAdmin(admin.ModelAdmin):
         return format_html('<a href="{}" target="_blank">Voir les matchs à venir</a>', url)
     matchlist_link.short_description = "Matchs à venir"
 
+@admin.register(Champion)
+class ChampionAdmin(admin.ModelAdmin):
+    list_display = ("name", "champion_image")
+    search_fields = ("name",)
+
+    def champion_image(self, obj):
+        if obj.image:
+            return format_html('<img src="{}" style="width:32px; object-fit:cover;">', obj.image.url)
+        return "-"
+    champion_image.short_description = "Image"
+
+@admin.register(PlayerStats)
+class PlayerStatsAdmin(admin.ModelAdmin):
+    list_display = ("player", "match", "champion", "kills", "deaths", "assists")
+    list_filter = ("champion", "player", "match")
+    search_fields = ("player__name", "champion__name")
+
 @admin.register(Prediction)
 class PredictionAdmin(admin.ModelAdmin):
     list_display = (
@@ -105,3 +122,4 @@ class MVPDayVoteAdmin(admin.ModelAdmin):
     list_filter = ("match_day__tournament", "fantasy_pick")
     search_fields = ("user__username", "match_day__tournament__name", "fantasy_pick__name")
     ordering = ("-timestamp",)
+
