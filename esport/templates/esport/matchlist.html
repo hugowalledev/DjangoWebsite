@@ -15,14 +15,14 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-1">
                     <!-- Teams & logos -->
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <img src="{{ match.red_team.logo.url }}" alt="{{ match.red_team.name }} logo"
+                        <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
                             class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.red_team.name }}</span>
+                        <span class="text-lg font-semibold text-gray-800">{{ match.red_roster.team.name }}</span>
                     </div>
                     <span class="mx-2 text-base text-gray-400 font-semibold">vs</span>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_team.name }}</span>
-                        <img src="{{ match.blue_team.logo.url }}" alt="{{ match.blue_team.name }} logo"
+                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_roster.team.name }}</span>
+                        <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
                             class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
                     </div>
 

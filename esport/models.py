@@ -6,8 +6,9 @@ import datetime
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
-    date_started = models.DateTimeField("date started")
-    date_ended = models.DateTimeField("date ended")
+    date_started = models.DateField("date started")
+    date_ended = models.DateField("date ended")
+    liquipedia_url = models.URLField(blank=True, null=True)
     slug = models.SlugField(unique=True)
 
     def save(self, *args, **kwargs):
@@ -28,11 +29,31 @@ class Team(models.Model):
 
 class Player(models.Model):
     name = models.CharField(max_length=255)
+    fullname = models.CharField(max_length=255, blank=True)
     photo = models.ImageField(upload_to="players")
     country = models.CharField(max_length=255)
-    team = models.ForeignKey(Team, on_delete=models.CASCADE)
     def __str__(self):
-        return f"{self.name} ({self.team.name})"
+        return f"{self.name}"
+
+class Roster(models.Model):
+    team = models.ForeignKey(Team, on_delete=models.CASCADE)
+    tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
+    year = models.PositiveIntegerField()
+
+    def starters(self):
+        return self.roster_players.filter(is_starter=True)
+    
+    def subs(self):
+        return self.roster_players.filter(is_starter=False)
+
+class RosterPlayer(models.Model):
+    roster = models.ForeignKey('Roster', on_delete=models.CASCADE, related_name='roster_players')
+    player = models.ForeignKey('Player', on_delete=models.CASCADE)
+    is_starter = models.BooleanField(default=True)
+    role = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        unique_together = ('roster', 'player')
 
 class MatchDay(models.Model):
     date = models.DateField()
@@ -50,12 +71,12 @@ class Match(models.Model):
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
     scheduled_hour = models.TimeField()
     scheduled_time = models.DateTimeField(editable=False)
-    red_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="red_team")
-    blue_team = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="blue_team")
+    blue_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="blue_matches")
+    red_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="red_matches")
     best_of = models.PositiveSmallIntegerField(choices=[(1, "BO1"), (3, "BO3"), (5, "BO5")], default=1)
 
-    winner = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="winner_team", blank=True, null=True)
-    loser = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="loser_team", blank=True, null=True)
+    winner = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="winner_team", blank=True, null=True)
+    loser = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="loser_team", blank=True, null=True)
     winner_score = models.PositiveSmallIntegerField(null=True, blank=True)
     loser_score = models.PositiveSmallIntegerField(null=True, blank=True)
     score_str = models.CharField(max_length=10, blank=True, null=True)
@@ -65,14 +86,20 @@ class Match(models.Model):
     @property
     def tournament(self):
         return self.match_day.tournament
+    @property
+    def blue_team(self):
+        return self.blue_roster.team
+    @property
+    def red_team(self):
+        return self.red_roster.team
     def __str__(self):
-        return f"{self.red_team.name} VS {self.blue_team.name} ({self.tournament.name})"
+        return f"{self.blue_roster.team.name} VS {self.red_roster.team.name} ({self.tournament.name})"
     def save(self, *args, **kwargs):
         self.scheduled_time = datetime.datetime.combine(self.match_day.date, self.scheduled_hour)
         super().save(*args, **kwargs)
 
 class PlayerStats(models.Model):
-    player = models.ForeignKey(Player, on_delete=models.CASCADE)
+    roster_player = models.ForeignKey(RosterPlayer, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
     champion = models.ForeignKey('Champion', on_delete=models.SET_NULL, null=True, blank=True, related_name="playerstats")
     kills = models.PositiveIntegerField(default=0)
@@ -83,7 +110,7 @@ class PlayerStats(models.Model):
         return (self.kills + self.assists) / max(1, self.deaths)
 
     def __str__(self):
-        return f"{self.player} in {self.match} ({self.champion or 'No Champion'})"
+        return f"{self.roster_player.player} in {self.match} ({self.champion or 'No Champion'})"
 
 class Champion(models.Model):
     name = models.CharField(max_length=50, unique=True)
@@ -99,7 +126,7 @@ class Prediction(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
 
-    predicted_winner = models.ForeignKey(Team, on_delete=models.CASCADE, related_name="predicted_match_wins")
+    predicted_winner = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="predicted_match_wins")
     predicted_score = models.CharField(max_length=10)
 
     is_correct = models.BooleanField(null=True, blank=True)
@@ -109,13 +136,6 @@ class Prediction(models.Model):
 
     class Meta:
         unique_together = ("user", "match")
-
-    def has_already_picked_mvp(user, player, tournament):
-        return Prediction.objects.filter(
-            user=user,
-            fantasy_pick=player,
-            match__tournament=tournament
-        ).exists()
 
     def __str__(self):
         return f"{self.user.username} - {self.match}"
@@ -139,9 +159,8 @@ class MVPDayVote(models.Model):
     class Meta:
         unique_together = ("user", "match_day", "fantasy_pick", "reset_id")
     def calculate_points(self):
-        # On récupère tous les matchs du joueur ce jour-là
         player_stats = PlayerStats.objects.filter(
-            player=self.fantasy_pick,
+            roster_player__player=self.fantasy_pick,
             match__match_day=self.match_day
         )
         total_kda = sum(stat.kda() for stat in player_stats)

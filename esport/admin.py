@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Champion, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction
+from .models import Champion, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction, Roster, RosterPlayer
 from .utils import get_possible_scores
 
 import datetime
@@ -13,16 +13,15 @@ def close_matches(modeladmin, request, queryset):
         match.is_closed = True
         match.save()
 
-class PlayerInline(admin.TabularInline):
-    model = Player
-    extra = 5
-    show_change_link = True
+@admin.register(Player)
+class PlayerAdmin(admin.ModelAdmin):
+    list_display = ("name", "fullname", "country")
+    search_fields = ("name", "fullname", "country")
 
 @admin.register(Team)
 class TeamAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
-    inlines = [PlayerInline]
 
 class MatchAdminForm(forms.ModelForm):
     class Meta:
@@ -52,11 +51,12 @@ class MatchInline(admin.TabularInline):
     extra = 1
     actions = [close_matches]
     fields = (
-        "blue_team",
-        "red_team",
+        "blue_roster",
+        "red_roster",
         "scheduled_hour",
         "best_of",
         "winner",
+        "loser",
         "score_str",
         "is_closed",
         )
@@ -99,9 +99,16 @@ class ChampionAdmin(admin.ModelAdmin):
 
 @admin.register(PlayerStats)
 class PlayerStatsAdmin(admin.ModelAdmin):
-    list_display = ("player", "match", "champion", "kills", "deaths", "assists")
-    list_filter = ("champion", "player", "match")
-    search_fields = ("player__name", "champion__name")
+    list_display = ("get_player_name", "match", "champion", "kills", "deaths", "assists")
+    list_filter = ("champion", "roster_player__player", "match")
+    search_fields = ("roster_player__player__name", "champion__name")
+
+    def get_player_name(self, obj):
+        return obj.roster_player.player.name
+    get_player_name.short_description = "Player"
+    def get_team(self, obj):
+        return obj.roster_player.roster.team.name
+    get_team.short_description = "Team"
 
 @admin.register(Prediction)
 class PredictionAdmin(admin.ModelAdmin):
@@ -113,7 +120,7 @@ class PredictionAdmin(admin.ModelAdmin):
         "timestamp",
     )
     list_filter = ("match__match_day__tournament", "user")
-    search_fields = ("user__username", "match__team1__name", "match__team2__name")
+    search_fields = ("user__username", "match__blue_roster__team__name", "match__red_roster__team__name")
     ordering = ("-timestamp",)
 
 @admin.register(MVPDayVote)
@@ -123,3 +130,14 @@ class MVPDayVoteAdmin(admin.ModelAdmin):
     search_fields = ("user__username", "match_day__tournament__name", "fantasy_pick__name")
     ordering = ("-timestamp",)
 
+class RosterPlayerInline(admin.TabularInline):
+    model = RosterPlayer
+    extra = 2
+    fields = ("player", "is_starter", "role")
+    show_change_link = True
+
+@admin.register(Roster)
+class RosterAdmin(admin.ModelAdmin):
+    list_display = ("team", "tournament", "year")
+    inlines = [RosterPlayerInline]
+    search_fields = ("team_name", "tournament__name", "year")
