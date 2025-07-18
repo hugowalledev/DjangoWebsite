@@ -140,4 +140,4 @@ class RosterPlayerInline(admin.TabularInline):
 class RosterAdmin(admin.ModelAdmin):
     list_display = ("team", "tournament", "year")
     inlines = [RosterPlayerInline]
-    search_fields = ("team_name", "tournament__name", "year")
+    search_fields = ("team__name", "tournament__name", "year")

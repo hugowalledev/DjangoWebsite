@@ -170,6 +170,8 @@ SOCIALACCOUNT_PROVIDERS = {
    }
 }
 
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings
 SITE_ID = 1
