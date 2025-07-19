@@ -48,8 +48,8 @@ class MatchAdminForm(forms.ModelForm):
 class MatchInline(admin.TabularInline):
     form = MatchAdminForm
     model = Match
-    extra = 1
-    actions = [close_matches]
+    extra = 0
+    raw_id_fields = ("blue_roster", "red_roster", "winner", "loser")
     fields = (
         "blue_roster",
         "red_roster",
@@ -64,10 +64,18 @@ class MatchInline(admin.TabularInline):
 
 @admin.register(MatchDay)
 class MatchDayAdmin(admin.ModelAdmin):
-    list_display = ("tournament", "date")
+    list_display = ("tournament", "date", "view_matches_link")
     list_filter = ("tournament",)
     ordering = ("-date",)
     inlines = [MatchInline]
+
+    def view_matches_link(self, obj):
+        url = (
+            reverse('admin:esport_matchday_changelist')
+            + f'?match_day__id__exact={obj.id}'
+        )
+        return format_html(f'<a href="{url}">View Matches</a>')
+    view_matches_link.short_description = "Matches"
 
 class MatchDayInline(admin.StackedInline):
     model = MatchDay

@@ -16,17 +16,19 @@ def get_region(link, headers):
     div = soup.find(text="Region:")
     if not div:
         div = soup.find(text="Location:")
-    if not div :
+    if not div:
         return "Unknown"
     return div.findNext('a')['title']
 
 class Command(BaseCommand):
     help = "Imports Teams and Players from tournaments from Liquipedia and saves them"
     def handle(self, *args, **options):
+
+        headers = {'User-Agent': 'Mozilla/5.0'}
         for tournament in Tournament.objects.filter(date_ended__gte=datetime.datetime.today(), date_started__lte=date.today()+timedelta(days=7)).order_by('date_started'):
             url = tournament.liquipedia_url
-            headers = {'User-Agent': 'Mozilla/5.0'}
-            res = requests.get(url, headers=headers)
+            
+        res = requests.get(url, headers=headers)
             soup = BeautifulSoup(res.text, 'html.parser')
             year = tournament.date_started.year
             self.stdout.write(self.style.NOTICE(

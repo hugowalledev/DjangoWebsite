@@ -1,3 +1,5 @@
+import datetime
+from datetime import date, timedelta
 from django.views import generic, View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
@@ -58,17 +60,23 @@ def get_leaderboard(tournament):
     return leaderboard
 
 
-class TournamentlistView(generic.ListView):
+class TournamentListView(generic.TemplateView):
     template_name = "esport/events.html"
-    context_object_name = "tournaments_going"
 
-    def get_queryset(self):
-        """
-        return the outgoing tournament.
-        """
-        return Tournament.objects.order_by("-date_started")
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        now = timezone.now().date()
+        # Tournaments that are ongoing or start in the next 7 days
+        context['tournaments_going'] = Tournament.objects.filter(
+            date_ended__gte=now, date_started__lte=now + timedelta(days=5)
+        ).order_by('date_started')
 
-
+        # Past tournaments, ended before today
+        context['tournaments_past'] = Tournament.objects.filter(
+            date_ended__lt=now
+        ).order_by('-date_started')
+        return context
+        
 def matchlist(request, slug):
     tournament = get_object_or_404(Tournament, slug=slug)
     now = timezone.now()

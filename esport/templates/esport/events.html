@@ -1,13 +1,48 @@
 {% extends "base.html" %}
-
 {% block content %}
-    {% if tournaments_going %}
-        <ul>
-        {% for tournament in tournaments_going %}
-            <li><a href="{% url 'esport:matchlist' tournament.slug %}">{{ tournament.name }}</a></li>
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No tournament now.</p>
-    {% endif %}
+
+<div class="max-w-3xl mx-auto px-4 py-8">
+
+    <h1 class="text-2xl font-bold text-gray-900 mb-6 text-center">League of Legends Tournaments</h1>
+
+    <div class="mb-10">
+        <h2 class="text-xl font-semibold text-blue-700 mb-4">Ongoing & Upcoming</h2>
+        {% if tournaments_going %}
+            <ul class="space-y-3">
+                {% for tournament in tournaments_going %}
+                    <li class="bg-white rounded-lg shadow flex items-center justify-between p-4 hover:bg-blue-50">
+                        <a href="{% url 'esport:matchlist' tournament.slug %}" class="font-semibold text-lg text-blue-700 hover:underline">
+                            {{ tournament.name }}
+                        </a>
+                        <span class="text-xs text-gray-600 ml-3">
+                            {{ tournament.date_started|date:"d M Y" }} – {{ tournament.date_ended|date:"d M Y" }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="p-4 text-center text-gray-500 bg-gray-100 rounded">No tournament currently running or starting soon.</div>
+        {% endif %}
+    </div>
+
+    <div>
+        <h2 class="text-xl font-semibold text-gray-700 mb-4">Past Tournaments</h2>
+        {% if tournaments_past %}
+            <ul class="space-y-3">
+                {% for tournament in tournaments_past %}
+                    <li class="bg-gray-50 rounded-lg flex items-center justify-between p-4 hover:bg-gray-100">
+                        <a href="{% url 'esport:matchlist' tournament.slug %}" class="font-medium text-gray-800 hover:underline">
+                            {{ tournament.name }}
+                        </a>
+                        <span class="text-xs text-gray-500 ml-3">
+                            {{ tournament.date_started|date:"d M Y" }} – {{ tournament.date_ended|date:"d M Y" }}
+                        </span>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% else %}
+            <div class="p-4 text-center text-gray-400 bg-gray-50 rounded">No tournaments found.</div>
+        {% endif %}
+    </div>
+</div>
 {% endblock %}

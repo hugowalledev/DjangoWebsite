@@ -1,7 +1,8 @@
 from django.db import models
-from datetime import timedelta
+from datetime import datetime, timedelta
 from django.core.exceptions import ValidationError
-import datetime
+from django.utils import timezone
+
 
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
@@ -46,6 +47,10 @@ class Roster(models.Model):
     def subs(self):
         return self.roster_players.filter(is_starter=False)
 
+    def __str__(self):
+        # Shows "Team Name (Tournament Year)"
+        return f"{self.team.name} ({self.tournament.name} {self.year})"
+
 class RosterPlayer(models.Model):
     roster = models.ForeignKey('Roster', on_delete=models.CASCADE, related_name='roster_players')
     player = models.ForeignKey('Player', on_delete=models.CASCADE)
@@ -69,7 +74,7 @@ class MatchDay(models.Model):
 class Match(models.Model):
     name = models.CharField(max_length=255)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
-    scheduled_hour = models.TimeField()
+    scheduled_hour = models.TimeField(null=True, blank=True)
     scheduled_time = models.DateTimeField(editable=False)
     blue_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="blue_matches")
     red_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="red_matches")
@@ -82,6 +87,8 @@ class Match(models.Model):
     score_str = models.CharField(max_length=10, blank=True, null=True)
 
     is_closed = models.BooleanField(default=False)
+
+    golgg_url = models.URLField(blank=True, null=True)
     
     @property
     def tournament(self):
@@ -95,7 +102,7 @@ class Match(models.Model):
     def __str__(self):
         return f"{self.blue_roster.team.name} VS {self.red_roster.team.name} ({self.tournament.name})"
     def save(self, *args, **kwargs):
-        self.scheduled_time = datetime.datetime.combine(self.match_day.date, self.scheduled_hour)
+        self.scheduled_time = timezone.make_aware(datetime.combine(self.match_day.date, self.scheduled_hour))
         super().save(*args, **kwargs)
 
 class PlayerStats(models.Model):
