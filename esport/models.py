@@ -105,9 +105,20 @@ class Match(models.Model):
         self.scheduled_time = timezone.make_aware(datetime.combine(self.match_day.date, self.scheduled_hour))
         super().save(*args, **kwargs)
 
+class Game(models.Model):
+    match = models.ForeignKey(Match, on_delete=models.CASCADE)
+    winner = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_winner")
+    loser = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_loser")
+    game_number = models.PositiveIntegerField()
+
+    def __str__(self):
+        return f"Game {self.game_number} of {self.match}"
+    class Meta:
+        unique_together = ('match', 'game_number')
+
 class PlayerStats(models.Model):
     roster_player = models.ForeignKey(RosterPlayer, on_delete=models.CASCADE)
-    match = models.ForeignKey(Match, on_delete=models.CASCADE)
+    game = models.ForeignKey(Game, on_delete=models.CASCADE, null=True)
     champion = models.ForeignKey('Champion', on_delete=models.SET_NULL, null=True, blank=True, related_name="playerstats")
     kills = models.PositiveIntegerField(default=0)
     deaths = models.PositiveIntegerField(default=0)
@@ -117,7 +128,8 @@ class PlayerStats(models.Model):
         return (self.kills + self.assists) / max(1, self.deaths)
 
     def __str__(self):
-        return f"{self.roster_player.player} in {self.match} ({self.champion or 'No Champion'})"
+        return f"{self.roster_player.player} in {self.game.match} Game {self.game.game_number} ({self.champion or 'No Champion'})"
+    
 
 class Champion(models.Model):
     name = models.CharField(max_length=50, unique=True)

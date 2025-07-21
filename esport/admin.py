@@ -2,7 +2,7 @@ from django import forms
 from django.contrib import admin
 from django.urls import reverse
 from django.utils.html import format_html
-from .models import Champion, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction, Roster, RosterPlayer
+from .models import Champion, Game, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction, Roster, RosterPlayer
 from .utils import get_possible_scores
 
 import datetime
@@ -22,6 +22,14 @@ class PlayerAdmin(admin.ModelAdmin):
 class TeamAdmin(admin.ModelAdmin):
     list_display = ("name",)
     search_fields = ("name",)
+
+@admin.register(Game)
+class GameAdmin(admin.ModelAdmin):
+    list_display = ("game_number", "match", "winner", "loser")
+    list_filter = ("match",)
+    search_fields = ("match__blue_roster__team__name", "match__red_roster__team__name")
+    ordering = ("match", "game_number")
+
 
 class MatchAdminForm(forms.ModelForm):
     class Meta:
@@ -107,17 +115,26 @@ class ChampionAdmin(admin.ModelAdmin):
 
 @admin.register(PlayerStats)
 class PlayerStatsAdmin(admin.ModelAdmin):
-    list_display = ("get_player_name", "match", "champion", "kills", "deaths", "assists")
-    list_filter = ("champion", "roster_player__player", "match")
-    search_fields = ("roster_player__player__name", "champion__name")
+    list_display = ("get_player_name", "get_team", "game", "get_match", "champion", "kills", "deaths", "assists")
+    list_filter = ("champion", "roster_player__player", "game__match")
+    search_fields = ("roster_player__player__name", "champion__name", "game__match")
+    ordering = ("game", "roster_player")
 
     def get_player_name(self, obj):
         return obj.roster_player.player.name
     get_player_name.short_description = "Player"
+
     def get_team(self, obj):
         return obj.roster_player.roster.team.name
     get_team.short_description = "Team"
 
+    def get_match(self, obj):
+        return obj.game.match
+    get_match.short_description = "Match"
+
+    def __str__(self):
+        return f"{self.roster_player.player} in {self.game.match} Game {self.game.game_number} ({self.champion or 'No Champion'})"
+    
 @admin.register(Prediction)
 class PredictionAdmin(admin.ModelAdmin):
     list_display = (

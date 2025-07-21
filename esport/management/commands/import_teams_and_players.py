@@ -126,7 +126,7 @@ class Command(BaseCommand):
                             a_tags = td.find_all('a', title=True)
                             nationality = td.find('img')['alt']
                             nickname = a_tags[-1].get_text(strip=True) if a_tags else td.get_text(strip=True)
-                            if not nickname or not role:
+                            if not nickname or not role or nickname == "TBD":
                                 continue
 
                             if nickname in players :
@@ -167,11 +167,11 @@ class Command(BaseCommand):
                             nickname = a_tags[-1].get_text(strip=True)
 
                             # Defensive
-                            if not nickname or not role:
+                            if not nickname or not role or nickname == "TBD":
                                 continue
 
                             if nickname in players :
-                                break
+                                continue
                             players.add(nickname)
 
                             obj_player, created_player = Player.objects.get_or_create(

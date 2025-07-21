@@ -220,6 +220,15 @@ class Command(BaseCommand):
                         if not red_roster :
                             self.stdout.write(self.style.WARNING(f"Roster not found for:{red_str}"))
                             continue
+                    blue_players = RosterPlayer.objects.filter(roster=blue_roster)
+                    red_players = RosterPlayer.objects.filter(roster=red_roster)
+                    
+                    if len(blue_players) < 5 or blue_players == None:
+                        self.stdout.write(self.style.WARNING(f"Team not complete yet:{blue_str}"))
+                        continue
+                    if len(red_players) < 5 or red_players == None:
+                        self.stdout.write(self.style.WARNING(f"Team not complete yet:{red_str}"))
+                        continue
 
                     match_name = f"{blue_roster.team.name} VS {red_roster.team.name} ({tournament.name})"
 
