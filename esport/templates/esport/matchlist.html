@@ -15,18 +15,18 @@
                 <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-1">
                     <!-- Teams & logos -->
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
+                        <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
                             class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.red_roster.team.name }}</span>
+                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_roster.team.name }}</span>
                     </div>
                     <span class="mx-2 text-base text-gray-400 font-semibold">vs</span>
                     <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_roster.team.name }}</span>
-                        <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
+                        <span class="text-lg font-semibold text-gray-800">{{ match.red_roster.team.name }}</span>
+                        <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
                             class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
                     </div>
 
-                    <!-- Prediction badge (on mobile: goes below) -->
+                    <!-- Prediction badge -->
                     <div class="sm:ml-6 mt-2 sm:mt-0 flex items-center">
                         {% with prediction=user_predictions|get_item:match.id %}
                             {% if user.is_authenticated and prediction %}
@@ -48,8 +48,10 @@
 
                 <!-- Date + timer -->
                 <div class="flex flex-col items-end min-w-max mt-4 sm:mt-0">
-                    <span class="block text-gray-500 text-sm">
-                        Débute à {{ match.scheduled_time|date:"H:i - d/m/Y" }}
+                    <span class="scheduled-time block text-gray-500 text-sm"
+                          data-utc="{{ match.scheduled_time|date:'c' }}">
+                        <!-- Will be replaced by JS -->
+                        
                     </span>
                     <span 
                         class="font-mono text-blue-600 text-base countdown"
@@ -126,8 +128,22 @@
 </div>
 
 <!-- Timer JS -->
+<!-- Timer JS & Local Time Converter -->
 <script>
+    // Local time conversion for match start
     document.addEventListener("DOMContentLoaded", function() {
+        // Convert UTC times to local browser times
+        document.querySelectorAll('.scheduled-time').forEach(function(span) {
+            const utc = span.dataset.utc;
+            if (!utc) return;
+            const date = new Date(utc);
+            const localString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+                ' - ' +
+                date.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+            span.textContent = "Débute à " + localString;
+        });
+
+        // Countdown timer
         function updateCountdowns() {
             const now = Math.floor(Date.now() / 1000);
             document.querySelectorAll(".countdown").forEach(function(span) {
@@ -152,6 +168,7 @@
         updateCountdowns();
         setInterval(updateCountdowns, 1000);
     });
+
     function showDetailTooltip(matchId) {
         var tooltip = document.getElementById("tooltip-" + matchId);
         if (tooltip) {

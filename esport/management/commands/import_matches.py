@@ -36,7 +36,6 @@ def find_closest_team_roster(scraped_team_name, normalized_map):
 
     target_norm = normalize_team_name(scraped_team_name)
     # Try exact match first
-    print(target_norm)
     if target_norm in normalized_map:
         return normalized_map[target_norm]
 

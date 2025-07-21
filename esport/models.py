@@ -159,7 +159,7 @@ class Prediction(models.Model):
 class MVPDayVote(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE)
-    fantasy_pick = models.ForeignKey(Player, on_delete=models.CASCADE)
+    fantasy_pick = models.ForeignKey(RosterPlayer, on_delete=models.CASCADE)
     timestamp = models.DateTimeField(auto_now_add=True)
     reset_id = models.PositiveIntegerField(default=0)
     
@@ -167,7 +167,7 @@ class MVPDayVote(models.Model):
         unique_together = ("user", "match_day", "fantasy_pick", "reset_id")
     def calculate_points(self):
         player_stats = PlayerStats.objects.filter(
-            roster_player__player=self.fantasy_pick,
+            roster_player=self.fantasy_pick,
             match__match_day=self.match_day
         )
         total_kda = sum(stat.kda() for stat in player_stats)

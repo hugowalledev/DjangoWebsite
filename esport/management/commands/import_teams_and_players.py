@@ -25,10 +25,10 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         headers = {'User-Agent': 'Mozilla/5.0'}
-        for tournament in Tournament.objects.filter(date_ended__gte=datetime.datetime.today(), date_started__lte=date.today()+timedelta(days=7)).order_by('date_started'):
+        for tournament in Tournament.objects.filter(date_ended__gte=date(2019,4,15), date_started__lte=date.today()+timedelta(days=5)).order_by('date_started'):
             url = tournament.liquipedia_url
             
-        res = requests.get(url, headers=headers)
+            res = requests.get(url, headers=headers)
             soup = BeautifulSoup(res.text, 'html.parser')
             year = tournament.date_started.year
             self.stdout.write(self.style.NOTICE(
@@ -124,7 +124,7 @@ class Command(BaseCommand):
                             role = img['alt'] if img else ""
                             # Get the player (from <a title="PlayerName"...>)
                             a_tags = td.find_all('a', title=True)
-                            nationality = a_tags[-2]['title'] if len(a_tags) > 2 and a_tags[-2].has_attr('title') else "Unkwown"
+                            nationality = td.find('img')['alt']
                             nickname = a_tags[-1].get_text(strip=True) if a_tags else td.get_text(strip=True)
                             if not nickname or not role:
                                 continue
@@ -163,7 +163,7 @@ class Command(BaseCommand):
                             role = img['alt'] if img else "Unknown"
                             # Get the player
                             a_tags = td.find_all('a', title=True)
-                            nationality = a_tags[-2]['title'] if len(a_tags) > 2 and a_tags[-2].has_attr('title') else "Unknown"
+                            nationality = td.find('img')['alt']
                             nickname = a_tags[-1].get_text(strip=True)
 
                             # Defensive

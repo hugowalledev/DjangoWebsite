@@ -3,7 +3,7 @@ from datetime import date, timedelta
 from django.views import generic, View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
-from .models import Match, MatchDay, MVPDayVote, MVPResetState, Prediction, Player, PlayerStats, Tournament, Team, UserProfile
+from .models import Match, MatchDay, MVPDayVote, MVPResetState, Prediction, Player, PlayerStats, Roster, RosterPlayer, Tournament, Team, UserProfile
 from .forms import MatchPredictionForm
 from django.forms import formset_factory
 from django.utils import timezone
@@ -121,13 +121,20 @@ class PredictionView(View):
         today = timezone.now().date()
         reset_state, _ = MVPResetState.objects.get_or_create(tournament=tournament)
         current_reset = reset_state.reset_id
+        now = timezone.now()
 
 
 
         matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
 
         for matchday in matchdays:
-            for match in matchday.matches.all():
+            if matchday.date == today:
+                matchs_a_venir = [m for m in matchday.matches.all() if m.scheduled_time > now]
+            else:
+                matchs_a_venir = list(matchday.matches.all())
+            # Tu peux stocker le résultat sur matchday ou le passer à ton contexte
+            matchday.upcoming_matches = matchs_a_venir
+            for match in matchs_a_venir:
                 match.possible_scores = get_possible_scores(match)
 
         # Load Existing predictions
@@ -223,6 +230,12 @@ class PredictionView(View):
                 match_id = str(match.id)
                 winner_id = request.POST.get(f"winner_{match_id}")
                 predicted_score = request.POST.get(f"score_{match_id}")
+                winner_id = request.POST.get(f"winner_{match_id}")
+                try:
+                    winner_roster = Roster.objects.get(id=winner_id)
+                except Roster.DoesNotExist:
+                    print("Invalid winner_roster ID:", winner_id)
+                    continue
 
                 if winner_id and predicted_score:
                     # Create or update the Prediction

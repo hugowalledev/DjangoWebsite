@@ -51,7 +51,7 @@
            {{ matchday.date }} :
         </h2>
 
-        {% for match in matchday.matches.all %}
+        {% for match in matchday.upcoming_matches %}
           {% with prediction=predictions_by_match|get_item:match.id %}
             <div class="border-t pt-4 mt-4">
               <div class="flex items-center gap-4 mb-2">
@@ -66,13 +66,13 @@
               <!-- Winner Prediction -->
               <div class="flex gap-4 items-center mt-2">
                 <label class="inline-flex items-center gap-2">
-                  <input type="radio" name="winner_{{ match.id }}" value="{{ match.red_team.id }}"
-                    {% if prediction and prediction.predicted_winner.id == match.red_team.id %}checked{% endif %}>
+                  <input type="radio" name="winner_{{ match.id }}" value="{{ match.red_roster.id }}"
+                    {% if prediction and prediction.predicted_winner.id == match.red_roster.id %}checked{% endif %}>
                   {{ match.red_team.name }}
                 </label>
                 <label class="inline-flex items-center gap-2">
-                  <input type="radio" name="winner_{{ match.id }}" value="{{ match.blue_team.id }}"
-                    {% if prediction and prediction.predicted_winner.id == match.blue_team.id %}checked{% endif %}>
+                  <input type="radio" name="winner_{{ match.id }}" value="{{ match.blue_roster.id }}"
+                    {% if prediction and prediction.predicted_winner.id == match.blue_roster.id %}checked{% endif %}>
                   {{ match.blue_team.name }}
                 </label>
               </div>
@@ -114,31 +114,35 @@
             {% for match in matchday.matches.all %}
               {% with current_pick=fantasy_by_day|get_item:matchday.id %}
                 {# --- RED TEAM --- #}
-                {% if match.red_team.player_set.all %}
-                  <optgroup label="{{ match.red_team.name }}">
-                    {% for player in match.red_team.player_set.all %}
-                      {% if player.id not in already_picked_players %}
-                        <option value="{{ player.id }}"
-                          {% if current_pick == player.id %}selected{% endif %}>
-                          {{ player.name }}
+                {% if match.red_roster.roster_players.all %}
+                  <optgroup label="{{ match.red_roster.team.name }}">
+                    {% for rp in match.red_roster.roster_players.all %}
+                      {% if rp.id not in already_picked_players %}
+                        <option value="{{ rp.id }}"
+                          {% if current_pick == rp.id %}selected{% endif %}>
+                          {{ rp.player.name }} ({{ rp.role }})
                         </option>
-                      {% elif current_pick == player.id %}
-                        <option value="{{ player.id }}" selected>{{ player.name }}</option>
+                      {% elif current_pick == rp.id %}
+                        <option value="{{ rp.id }}" selected>
+                          {{ rp.player.name }} ({{ rp.role }})
+                        </option>
                       {% endif %}
                     {% endfor %}
                   </optgroup>
                 {% endif %}
                 {# --- BLUE TEAM --- #}
-                {% if match.blue_team.player_set.all %}
-                  <optgroup label="{{ match.blue_team.name }}">
-                    {% for player in match.blue_team.player_set.all %}
-                      {% if player.id not in already_picked_players %}
-                        <option value="{{ player.id }}"
-                          {% if current_pick == player.id %}selected{% endif %}>
-                          {{ player.name }}
+                {% if match.blue_roster.roster_players.all %}
+                  <optgroup label="{{ match.blue_roster.team.name }}">
+                    {% for rp in match.blue_roster.roster_players.all %}
+                      {% if rp.id not in already_picked_players %}
+                        <option value="{{ rp.id }}"
+                          {% if current_pick == rp.id %}selected{% endif %}>
+                          {{ rp.player.name }} ({{ rp.role }})
                         </option>
-                      {% elif current_pick == player.id %}
-                        <option value="{{ player.id }}" selected>{{ player.name }}</option>
+                      {% elif current_pick == rp.id %}
+                        <option value="{{ rp.id }}" selected>
+                          {{ rp.player.name }} ({{ rp.role }})
+                        </option>
                       {% endif %}
                     {% endfor %}
                   </optgroup>
@@ -146,6 +150,7 @@
               {% endwith %}
             {% endfor %}
           </select>
+
         </div>
       </div>
     {% endfor %}
