@@ -132,8 +132,6 @@ class PlayerStatsAdmin(admin.ModelAdmin):
         return obj.game.match
     get_match.short_description = "Match"
 
-    def __str__(self):
-        return f"{self.roster_player.player} in {self.game.match} Game {self.game.game_number} ({self.champion or 'No Champion'})"
     
 @admin.register(Prediction)
 class PredictionAdmin(admin.ModelAdmin):

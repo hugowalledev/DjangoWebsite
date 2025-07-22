@@ -110,6 +110,7 @@ class Game(models.Model):
     winner = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_winner")
     loser = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_loser")
     game_number = models.PositiveIntegerField()
+    side_swapped = models.BooleanField(default=False)
 
     def __str__(self):
         return f"Game {self.game_number} of {self.match}"
