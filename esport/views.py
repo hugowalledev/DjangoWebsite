@@ -1,3 +1,4 @@
+from collections import defaultdict, OrderedDict
 import datetime
 from datetime import date, timedelta
 from django.views import generic, View
@@ -85,6 +86,16 @@ def matchlist(request, slug):
         scheduled_time__gte=now
     ).order_by('scheduled_time')
 
+    past_matches = Match.objects.filter(
+        match_day__tournament=tournament,
+        scheduled_time__lt=now
+    ).order_by('-scheduled_time')
+
+    matches_by_day = defaultdict(list)
+    for match in past_matches:
+        day = match.scheduled_time.date()
+        matches_by_day[day].append(match)
+
     leaderboard = get_leaderboard(tournament)
 
     user_predictions = {}
@@ -101,19 +112,12 @@ def matchlist(request, slug):
     return render(request, 'esport/matchlist.html', {
         'tournament': tournament,
         'upcoming_matches': upcoming_matches,
+        'past_matches': past_matches,
+        'matches_by_day': sorted(matches_by_day.items(), reverse=True),
         'leaderboard' : leaderboard,
         'user_predictions': user_predictions,
         'has_voted_all': has_voted_all,
     })
-
-class VoteView(generic.DetailView):
-    model = Tournament
-    template_name = "esport/vote.html"
-    def get_queryset(self):
-        """
-        Show incoming matches.
-        """
-        return Tournament.objects
 
 class PredictionView(View):
     def get(self, request, slug):
@@ -254,3 +258,103 @@ class PredictionView(View):
 
         messages.success(request, "Your pronostics have been saved!")
         return redirect("esport:matchlist", slug=tournament.slug)
+
+from django.shortcuts import render, get_object_or_404
+from esport.models import Match, Game, PlayerStats, RosterPlayer
+
+def match_detail(request, match_id):
+    match = get_object_or_404(Match, id=match_id)
+    games = Game.objects.filter(match=match).order_by('game_number')
+
+    games_data = []
+    for game in games:
+        stats = PlayerStats.objects.filter(game=game).select_related(
+            'roster_player__player', 'roster_player__roster', 'champion'
+        )
+        # Decide sides according to side_swapped
+        if not game.side_swapped:
+            blue_roster = match.blue_roster
+            red_roster = match.red_roster
+        else:
+            blue_roster = match.red_roster
+            red_roster = match.blue_roster
+
+        blue_stats = [stat for stat in stats if stat.roster_player.roster == blue_roster]
+        red_stats = [stat for stat in stats if stat.roster_player.roster == red_roster]
+
+        games_data.append({
+            'game': game,
+            'blue_stats': blue_stats,
+            'red_stats': red_stats,
+            'blue_roster': blue_roster,
+            'red_roster': red_roster,
+        })
+
+    context = {
+        'match': match,
+        'games_data': games_data,
+    }
+    return render(request, 'esport/match_detail.html', context)
+
+
+def tournament_scoreboard(request, slug):
+    tournament = get_object_or_404(Tournament, slug=slug)
+    matchdays = list(tournament.days.order_by('date'))
+
+    # Collect all users who made predictions or MVP picks
+    user_ids = set(
+        Prediction.objects.filter(match__match_day__tournament=tournament).values_list('user_id', flat=True)
+    ) | set(
+        MVPDayVote.objects.filter(match_day__tournament=tournament).values_list('user_id', flat=True)
+    ) 
+    if not user_ids:
+        return render(request, 'esport/tournament_scoreboard.html', {
+            'tournament': tournament,
+            'matchdays': matchdays,
+            'scoreboard_rows': [],
+        })
+
+    users = list(UserProfile.objects.filter(id__in=user_ids))
+    user_map = {u.id: u for u in users}
+
+    all_preds = list(Prediction.objects.filter(match__match_day__tournament=tournament).select_related('match', 'predicted_winner'))
+    all_mvps = list(MVPDayVote.objects.filter(match_day__tournament=tournament).select_related('fantasy_pick__player', 'match_day'))
+
+    # Prepare the scoreboard rows
+    scoreboard_rows = []
+    for user in users:
+        row = {
+            "user": user,
+            "days": [],
+            "total": 0,
+        }
+        total_score = 0
+        for day in matchdays:
+            # All predictions for this user and day
+            preds = [p for p in all_preds if p.user_id == user.id and p.match.match_day_id == day.id]
+            pred_points = sum(p.calculate_points() for p in preds)
+            # MVP for this user and day
+            mvp = next((m for m in all_mvps if m.user_id == user.id and m.match_day_id == day.id), None)
+            mvp_points = mvp.calculate_points() if mvp else 0
+            day_total = pred_points + mvp_points
+            row["days"].append({
+                "preds": preds,
+                "mvp": mvp,
+                "pred_points": pred_points,
+                "mvp_points": mvp_points,
+                "day_total": day_total,
+            })
+            total_score += day_total
+        row["total"] = total_score
+        scoreboard_rows.append(row)
+    # Rank users
+    scoreboard_rows.sort(key=lambda r: r["total"], reverse=True)
+    for i, row in enumerate(scoreboard_rows, start=1):
+        row["rank"] = i
+
+    context = {
+        'tournament': tournament,
+        'matchdays': matchdays,
+        'scoreboard_rows': scoreboard_rows,
+    }
+    return render(request, 'esport/tournament_scoreboard.html', context)

@@ -14,8 +14,6 @@ def normalize_team_name(name):
     name = name.lower()
     name = name.replace("’", "").replace("'", "").replace("`", "").replace(" ","")
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode("utf-8")
-    name = re.sub(r"\s+", " ", name).strip()
-    # Remove prefixes like "movistar", "team", "esports", etc. (customize this)
     name = re.sub(r"^(movistar|team|esports|club|fc|ac|the)\s+", "", name)
     
     return name
@@ -83,9 +81,6 @@ def get_date(date_str):
         'octubre': 10, 'oct.': 10,
         'noviembre': 11, 'nov.': 11,
         'diciembre': 12, 'dic.': 12,
-        # Romanian
-        'ian.': 1, 'feb.': 2, 'mart.': 3, 'apr.': 4, 'mai': 5, 'iun.': 6,
-        'iul.': 7, 'aug.': 8, 'sept.': 9, 'oct.': 10, 'nov.': 11, 'dec.': 12,
     }
 
     today = date.today()
@@ -98,7 +93,6 @@ def get_date(date_str):
     if date_str == "demain" or date_str == "tomorrow":
         return today + timedelta(days=1)
     
-    # Case 1: "14 juin", "jun 14", "14 juil.", "jul 14"
     match = re.match(r"^(\d{1,2})\s*([a-zéû.]+)$", date_str)
     if match:
         day, month_str = int(match.group(1)), match.group(2)
@@ -113,30 +107,6 @@ def get_date(date_str):
         if month:
             return date(today.year, month, day)
     
-    # Case 2: "14 thg 6" (Vietnamese: 'thg' means 'month')
-    match = re.match(r"^(\d{1,2})\s*thg\s*(\d{1,2})$", date_str)
-    if match:
-        day, month = int(match.group(1)), int(match.group(2))
-        return date(today.year, month, day)
-    
-    # Case 3: "14. 6." or "14.6." (Czech/German style)
-    match = re.match(r"^(\d{1,2})\.\s*(\d{1,2})\.$", date_str)
-    if match:
-        day, month = int(match.group(1)), int(match.group(2))
-        return date(today.year, month, day)
-
-    # Case 4: "6月14日" (Chinese/Japanese: month, day)
-    match = re.match(r"^(\d{1,2})月(\d{1,2})日$", date_str)
-    if match:
-        month, day = int(match.group(1)), int(match.group(2))
-        return date(today.year, month, day)
-
-    # Case 5: "14. 6." (sometimes with no trailing dot)
-    match = re.match(r"^(\d{1,2})\.\s*(\d{1,2})\.?$", date_str)
-    if match:
-        day, month = int(match.group(1)), int(match.group(2))
-        return date(today.year, month, day)
-
     raise ValueError(f"Unrecognized date format: {date_str}")
 
 def get_tournament(league, tournaments):
@@ -166,7 +136,7 @@ class Command(BaseCommand):
         sects = soup.find_all('section' , attrs={"data-tag": True})
         if not sects:
             print("[DEBUG] no <section data-tag=True> found in page!")
-            continue
+            
 
 
         tournaments = Tournament.objects.filter(
@@ -185,6 +155,7 @@ class Command(BaseCommand):
         for date_sect in sects:
             with transaction.atomic():
                 date_matches = get_date(date_sect['data-date'])
+                print(date_matches, date_sect['data-date'])
                 if date_matches > date.today():
 
 

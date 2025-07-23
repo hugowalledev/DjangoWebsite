@@ -5,6 +5,7 @@ from datetime import date, datetime, time, timedelta
 import difflib
 from django.core.management.base import BaseCommand
 from django.db import transaction
+from django.db.models import Q
 from esport.models import  Champion, Game, Match, MatchDay, PlayerStats, Roster, RosterPlayer, Team, Tournament
 import unicodedata
 from urllib.parse import quote
@@ -17,6 +18,18 @@ def get_game_link(link, headers, i):
     nav = soup.find(id='gameMenuToggler')
     li_tags = nav.find_all('li')
     return li_tags[i+1].find('a')['href'].replace("..", "https://gol.gg")
+
+def get_teams(link, headers):
+    url = link.replace("-game","-summary")
+    res = requests.get(url, headers=headers)
+    soup = BeautifulSoup(res.text, 'html.parser')
+
+    divs = soup.find_all('div', class_="col-4 col-sm-5 text-center")
+    if len(divs) < 2:
+        raise Exception(f"Could not find both teams on page: {url}")
+    blue = normalize_team_name(divs[0].get_text(strip=True))
+    red = normalize_team_name(divs[1].get_text(strip=True))
+    return blue, red
 
 def fix_champion(name):
     name = name.lower()
@@ -147,7 +160,6 @@ def save_game_and_stats(game_data, match, game_number, normalized_champions, ros
             summary['error_details'].append({
                 "type": "roster_player_missing",
                 "player_name": player_name,
-                "team": team,
                 "match": str(match),
                 "game_number": game_number,
             })
@@ -213,7 +225,7 @@ class Command(BaseCommand):
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
 
         for tournament in Tournament.objects.filter(
-                date_ended__gte=datetime.today() + timedelta(days=-30),
+                date_ended__gte=datetime.today() + timedelta(days=-5),
                 date_started__lte=date.today(),
             ).order_by('date_started'):
 
@@ -239,6 +251,9 @@ class Command(BaseCommand):
             for row in rows:
                 with transaction.atomic():
                     cols = row.find_all('td')
+                    patch = cols[-2].get_text()
+                    if patch == "":
+                        continue
                     date_str = cols[-1].get_text()
                     
                     date_match = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -246,14 +261,12 @@ class Command(BaseCommand):
                         date=date_match,
                         tournament=tournament,
                     )
-                    
 
                     match_ref = cols[0].find('a')
                     match_url = match_ref['href'].replace("..","https://gol.gg").replace("summary/", "game/")
-                    blue_team_str = normalize_team_name(cols[1].get_text())
-                    red_team_str = normalize_team_name(cols[3].get_text())
+                    blue_team_str, red_team_str = get_teams(match_ref['href'].replace("..","https://gol.gg"), headers)
                     score_str = cols[2].get_text()
-                    patch = cols[-2].get_text()
+                    
 
                     blue_roster = find_closest_team_roster(blue_team_str, normalized_map)
                     red_roster = find_closest_team_roster(red_team_str, normalized_map)
@@ -264,12 +277,6 @@ class Command(BaseCommand):
                         self.stdout.write(self.style.WARNING(f"Roster not found for:{red_team_str}"))
                         continue
 
-
-
-                    if patch == "":
-                        continue
-                    
-                        
                     winner_str = normalize_team_name(row.find('td', class_="text_victory").get_text())
                     score_stack = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
 
@@ -278,43 +285,48 @@ class Command(BaseCommand):
                         winner_score = int(score_stack.group(1))
                         loser = red_roster
                         loser_score = int(score_stack.group(2))
+                        
                     else:
                         winner = red_roster
                         winner_score = int(score_stack.group(2))
                         loser = blue_roster
                         loser_score = int(score_stack.group(1))
-
-                    
                     best_of = 2*winner_score - 1
-                    match, created_match = Match.objects.update_or_create(
-                        match_day=matchday,
-                        blue_roster=blue_roster,
-                        red_roster=red_roster,
-                        defaults={
-                            'scheduled_hour': time(12,0),
-                            'name': f"{blue_roster.team.name} VS {red_roster.team.name} ({tournament.name})",
-                            'best_of': best_of,
-                            'score_str': score_str,
-                            'winner': winner,
-                            'is_closed': True,
-                            'winner_score': winner_score,
-                            'loser_score': loser_score,
-                        })
+
+                    match = Match.objects.filter(
+                        Q(match_day=matchday, blue_roster=blue_roster, red_roster=red_roster) |
+                        Q(match_day=matchday, blue_roster=red_roster, red_roster=blue_roster)
+                    ).first()
+
+                    if match:
+                        match.score_str = score_str
+                        match.winner = winner
+                        match.is_closed = True
+                        match.winner_score = winner_score
+                        match.loser_score = loser_score
+                        if match.blue_roster != blue_roster:
+                            match.blue_roster = red_roster
+                            match.red_roster = blue_roster
+                        match.save()
+
+                        roster_player_map = {}
+                        number_of_games = winner_score + loser_score
+                        for rp in RosterPlayer.objects.filter(roster__in=[match.blue_roster, match.red_roster]):
+                            roster_player_map[rp.player.name.lower()] = rp
+
+
+                        if match.best_of == 1:
+                            import_game(match_url, headers, match, 1, normalized_champions, roster_player_map, summary)
+                        else:
+                            for i in range(number_of_games):
+                                import_game(get_game_link(match_url, headers, i), headers, match, i+1, normalized_champions, roster_player_map, summary)
+
+                    else:
+                        print(f"[SKIP] Match does not exist {blue_team_str} VS {red_team_str} (or reversed): {date_match}, not creating new one.")
                     summary['matches_processed'] += 1
 
-                    number_of_games = winner_score + loser_score
 
-                    roster_player_map = {}
-                    for rp in RosterPlayer.objects.filter(roster__in=[match.blue_roster, match.red_roster]):
-                        roster_player_map[rp.player.name.lower()] = rp
-
-
-                    if match.best_of == 1:
-                        import_game(match_url, headers, match, 1, normalized_champions, roster_player_map, summary)
-                    else:
-                        for i in range(number_of_games):
-                            import_game(get_game_link(match_url, headers, i), headers, match, i+1, normalized_champions, roster_player_map, summary)
-
+                    
         print("\n==== Import Summary ====")
         for k, v in summary.items():
             print(f"{k.replace('_', ' ').capitalize()}: {v}")

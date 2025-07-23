@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/5.2/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
-
+import os
 from pathlib import Path
 from decouple import config
 
@@ -18,6 +18,7 @@ GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 MEDIA_ROOT=''
 MEDIA_URL=''
 
@@ -37,19 +38,20 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    # Admin-interface
+    'jazzmin',
+    'django.contrib.admin',
     # Apps
     'esport.apps.EsportConfig',
     'polls.apps.PollsConfig',
     'users.apps.UsersConfig',
 
-    'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
     'django.contrib.sessions',
     'django.contrib.sites',
     'django.contrib.messages',
     'django.contrib.staticfiles',
-    'debug_toolbar',
 
     # Allauth
     'allauth',
@@ -70,7 +72,6 @@ AUTHENTICATION_BACKENDS = [
 
 
 MIDDLEWARE = [
-    'debug_toolbar.middleware.DebugToolbarMiddleware',
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -197,3 +198,7 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 NPM_BIN_PATH = 'C:/Program Files/nodejs/npm.cmd'
 
 TAILWIND_APP_NAME = 'theme'
+
+JAZZMIN_SETTINGS = {
+    "theme": "darkly",
+}

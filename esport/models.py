@@ -181,7 +181,7 @@ class MVPDayVote(models.Model):
     def calculate_points(self):
         player_stats = PlayerStats.objects.filter(
             roster_player=self.fantasy_pick,
-            match__match_day=self.match_day
+            game__match__match_day=self.match_day
         )
         total_kda = sum(stat.kda() for stat in player_stats)
         return total_kda

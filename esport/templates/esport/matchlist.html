@@ -93,7 +93,7 @@
     </div>
 
     <div class="max-w-2xl mx-auto my-8">
-        <h2 class="text-xl font-bold text-gray-700 mb-4 text-center">Leaderboard</h2>
+        <a href="{% url 'esport:tournament_scoreboard' tournament.slug %}" class="btn text-xl font-bold text-gray-700 mb-4 text-center">Scoreboard</a>
         <table class="min-w-full bg-white rounded-xl shadow">
             <thead>
             <tr>
@@ -124,6 +124,69 @@
         {% for message in messages %}
             <div class="alert alert-success">{{ message }}</div>
         {% endfor %}
+    {% endif %}
+    <hr class="my-8">
+
+    <!-- Past matches section -->
+    <h2 class="text-xl font-bold text-gray-700 mb-4 text-center">Matchs joués</h2>
+    {% if matches_by_day %}
+        {% for day, matches in matches_by_day %}
+            <h3 class="text-lg font-semibold text-gray-600 mt-6 mb-2 text-center">
+                {{ day|date:"l d F Y" }}
+            </h3>
+            <ul class="space-y-4">
+                {% for match in matches %}
+                    <li class="rounded-2xl shadow bg-gray-50 overflow-hidden">
+                        <a href="{% url 'esport:match_detail' match.id %}" class="block hover:bg-blue-50 transition p-4 grid grid-cols-3 items-center">
+                            <!-- Blue Team -->
+                            <div class="flex items-center gap-2 justify-end w-full">
+                                <span class="
+                                    flex items-center gap-2 px-2 py-1 rounded-lg
+                                    {% if match.winner and match.winner == match.blue_roster %}
+                                        bg-gradient-to-r from-green-200 to-green-50
+                                    {% endif %}
+                                ">
+                                    <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
+                                        class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm
+                                                {% if match.winner and match.winner == match.blue_roster %}ring-2 ring-green-500{% endif %}">
+                                    <span class="text-lg font-semibold
+                                        {% if match.winner and match.winner == match.blue_roster %}text-green-700{% else %}text-gray-800{% endif %}">
+                                        {{ match.blue_roster.team.name }}
+                                    </span>
+                                </span>
+                            </div>
+                            <!-- Score (centered) -->
+                            <div class="flex flex-col items-center min-h-[36px] min-w-[70px]">
+                                {% if match.score_str %}
+                                    <span class="text-2xl font-bold text-blue-700">{{ match.score_str }}</span>
+                                {% else %}
+                                    <span class="invisible text-2xl font-bold">0 - 0</span>
+                                {% endif %}
+                            </div>
+                            <!-- Red Team -->
+                            <div class="flex items-center gap-2 justify-start w-full">
+                                <span class="
+                                    flex items-center gap-2 px-2 py-1 rounded-lg
+                                    {% if match.winner and match.winner == match.red_roster %}
+                                        bg-gradient-to-l from-green-200 to-green-50
+                                    {% endif %}
+                                ">
+                                    <span class="text-lg font-semibold
+                                        {% if match.winner and match.winner == match.red_roster %}text-green-700{% else %}text-gray-800{% endif %}">
+                                        {{ match.red_roster.team.name }}
+                                    </span>
+                                    <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
+                                        class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm
+                                                {% if match.winner and match.winner == match.red_roster %}ring-2 ring-green-500{% endif %}">
+                                </span>
+                            </div>
+                        </a>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+    {% else %}
+        <ul><li class="text-gray-500">Aucun match passé pour ce tournoi.</li></ul>
     {% endif %}
 </div>
 
