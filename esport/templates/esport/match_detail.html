@@ -1,4 +1,6 @@
 {% extends "base.html" %}
+
+{% load custom_filters %}
 {% block content %}
 <div class="max-w-3xl mx-auto p-4">
     <h1 class="text-2xl font-bold text-center mb-6">
@@ -16,31 +18,35 @@
                 {% endif %}
             </h2>
             <div class="grid grid-cols-2 gap-4">
-                <!-- Blue Side (can be either team, depends on swapped) -->
+                <!-- Blue Side (or swapped) -->
                 <div>
                     <div class="flex items-center gap-2 mb-2">
-                        <img src="{{ gameinfo.blue_roster.team.logo.url }}" class="w-8 h-8 rounded-full border" />
+                        <img src="{{ gameinfo.blue_roster.team.logo.url }}" class="w-6 h-6 rounded-full border" />
                         <span class="font-semibold text-blue-700">{{ gameinfo.blue_roster.team.name }}</span>
                     </div>
-                    <table class="min-w-full bg-white rounded shadow text-sm">
+                    <table class="w-full bg-white rounded shadow text-sm">
                         <thead>
                             <tr>
-                                <th>Joueur</th><th>Champion</th><th>K</th><th>D</th><th>A</th>
+                                <th class="px-2 py-1 text-left">Joueur</th>
+                                <th class="px-2 py-1 text-left">Champion</th>
+                                <th class="px-2 py-1 text-center w-10">K</th>
+                                <th class="px-2 py-1 text-center w-10">D</th>
+                                <th class="px-2 py-1 text-center w-10">A</th>
                             </tr>
                         </thead>
                         <tbody>
                         {% for stat in gameinfo.blue_stats %}
                             <tr>
-                                <td>{{ stat.roster_player.player.name }}</td>
-                                <td>
+                                <td class="px-2 py-1">{{ stat.roster_player.player.name }}</td>
+                                <td class="px-2 py-1">
                                     {% if stat.champion %}
-                                        <img src="{{ stat.champion.image.url }}" class="w-6 h-6 inline mr-1" />
-                                        {{ stat.champion.name }}
+                                        <img src="{{ stat.champion.image.url }}" class="w-6 h-6 inline mr-1 align-middle" />
+                                        <span class="align-middle">{{ stat.champion.name }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ stat.kills }}</td>
-                                <td>{{ stat.deaths }}</td>
-                                <td>{{ stat.assists }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.kills }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.deaths }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.assists }}</td>
                             </tr>
                         {% endfor %}
                         </tbody>
@@ -49,28 +55,32 @@
                 <!-- Red Side -->
                 <div>
                     <div class="flex items-center gap-2 mb-2">
-                        <img src="{{ gameinfo.red_roster.team.logo.url }}" class="w-8 h-8 rounded-full border" />
+                        <img src="{{ gameinfo.red_roster.team.logo.url }}" class="w-6 h-6 rounded-full border" />
                         <span class="font-semibold text-red-700">{{ gameinfo.red_roster.team.name }}</span>
                     </div>
-                    <table class="min-w-full bg-white rounded shadow text-sm">
+                    <table class="w-full bg-white rounded shadow text-sm">
                         <thead>
                             <tr>
-                                <th>Joueur</th><th>Champion</th><th>K</th><th>D</th><th>A</th>
+                                <th class="px-2 py-1 text-left">Joueur</th>
+                                <th class="px-2 py-1 text-left">Champion</th>
+                                <th class="px-2 py-1 text-center w-10">K</th>
+                                <th class="px-2 py-1 text-center w-10">D</th>
+                                <th class="px-2 py-1 text-center w-10">A</th>
                             </tr>
                         </thead>
                         <tbody>
                         {% for stat in gameinfo.red_stats %}
                             <tr>
-                                <td>{{ stat.roster_player.player.name }}</td>
-                                <td>
+                                <td class="px-2 py-1">{{ stat.roster_player.player.name }}</td>
+                                <td class="px-2 py-1">
                                     {% if stat.champion %}
-                                        <img src="{{ stat.champion.image.url }}" class="w-6 h-6 inline mr-1" />
-                                        {{ stat.champion.name }}
+                                        <img src="{{ stat.champion.image.url }}" class="w-6 h-6 inline mr-1 align-middle" />
+                                        <span class="align-middle">{{ stat.champion.name }}</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ stat.kills }}</td>
-                                <td>{{ stat.deaths }}</td>
-                                <td>{{ stat.assists }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.kills }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.deaths }}</td>
+                                <td class="px-2 py-1 text-center font-mono">{{ stat.assists }}</td>
                             </tr>
                         {% endfor %}
                         </tbody>
@@ -80,4 +90,70 @@
         </div>
     {% endfor %}
 </div>
+
+<div class="max-w-4xl mx-auto mt-8 mb-6 border rounded-2xl bg-gray-50 p-8">
+    <h2 class="text-2xl font-extrabold text-center mb-8 tracking-tight">Total du match par joueur</h2>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-8 items-start">
+        <!-- Blue Team Table -->
+        <div>
+            <div class="flex items-center gap-2 mb-4 justify-center">
+                <img src="{{ match.blue_roster.team.logo.url }}" class="w-6 h-6 rounded-full border" />
+                <span class="font-semibold text-blue-700 text-lg">{{ match.blue_roster.team.name }}</span>
+            </div>
+            <table class="w-full min-w-[220px] bg-white rounded-xl shadow-md text-sm border">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-2 px-4 text-left font-semibold text-base">Joueur</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">K</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">D</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">A</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">KDA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in blue_players %}
+                        <tr class="hover:bg-blue-50">
+                            <td class="py-2 px-4 font-medium">{{ player.player.name }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.kills }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.deaths }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.assists }}</td>
+                            <td class="py-2 px-2 text-center font-mono font-bold">{{ player|kda_total }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <!-- Red Team Table -->
+        <div>
+            <div class="flex items-center gap-2 mb-4 justify-center">
+                <img src="{{ match.red_roster.team.logo.url }}" class="w-6 h-6 rounded-full border" />
+                <span class="font-semibold text-red-700 text-lg">{{ match.red_roster.team.name }}</span>
+            </div>
+            <table class="w-full min-w-[220px] bg-white rounded-xl shadow-md text-sm border">
+                <thead>
+                    <tr class="bg-gray-100">
+                        <th class="py-2 px-4 text-left font-semibold text-base">Joueur</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">K</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">D</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">A</th>
+                        <th class="py-2 px-2 text-center font-semibold font-mono">KDA</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for player in red_players %}
+                        <tr class="hover:bg-red-50">
+                            <td class="py-2 px-4 font-medium">{{ player.player.name }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.kills }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.deaths }}</td>
+                            <td class="py-2 px-2 text-center font-mono">{{ player.assists }}</td>
+                            <td class="py-2 px-2 text-center font-mono font-bold">{{ player|kda_total }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
+

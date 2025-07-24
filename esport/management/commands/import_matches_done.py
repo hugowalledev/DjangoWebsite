@@ -305,8 +305,7 @@ class Command(BaseCommand):
                         match.winner_score = winner_score
                         match.loser_score = loser_score
                         if match.blue_roster != blue_roster:
-                            match.blue_roster = red_roster
-                            match.red_roster = blue_roster
+                            match.blue_roster, match.red_roster = match.red_roster, match.blue_roster
                         match.save()
 
                         roster_player_map = {}

@@ -88,7 +88,8 @@ def matchlist(request, slug):
 
     past_matches = Match.objects.filter(
         match_day__tournament=tournament,
-        scheduled_time__lt=now
+        scheduled_time__lt=now,
+        is_closed=True,
     ).order_by('-scheduled_time')
 
     matches_by_day = defaultdict(list)
@@ -131,9 +132,14 @@ class PredictionView(View):
 
         matchdays = MatchDay.objects.filter(tournament=tournament, date__gte=today).order_by("date").prefetch_related("matches")
 
+        today_matchday = None
+        can_pick_mvp_today = True
         for matchday in matchdays:
             if matchday.date == today:
+                today_matchday = matchday
                 matchs_a_venir = [m for m in matchday.matches.all() if m.scheduled_time > now]
+                already_started = any(m.scheduled_time <= now for m in today_matchday.matches.all())
+                can_pick_mvp_today = not already_started
             else:
                 matchs_a_venir = list(matchday.matches.all())
             # Tu peux stocker le résultat sur matchday ou le passer à ton contexte
@@ -172,6 +178,8 @@ class PredictionView(View):
             "predictions_by_match": predictions_by_match,
             "already_picked_players": user_picks,
             "fantasy_by_day": fantasy_by_day,
+            "today": today,
+            "can_pick_mvp_today": can_pick_mvp_today,
         }
         return render(request, "esport/fantasy.html", context)
 
@@ -267,10 +275,12 @@ def match_detail(request, match_id):
     games = Game.objects.filter(match=match).order_by('game_number')
 
     games_data = []
+    all_stats = PlayerStats.objects.filter(game__in=games).select_related(
+        'roster_player__player', 'roster_player__roster', 'champion'
+    )
+
     for game in games:
-        stats = PlayerStats.objects.filter(game=game).select_related(
-            'roster_player__player', 'roster_player__roster', 'champion'
-        )
+        stats = [stat for stat in all_stats if stat.game_id == game.id]
         # Decide sides according to side_swapped
         if not game.side_swapped:
             blue_roster = match.blue_roster
@@ -279,8 +289,8 @@ def match_detail(request, match_id):
             blue_roster = match.red_roster
             red_roster = match.blue_roster
 
-        blue_stats = [stat for stat in stats if stat.roster_player.roster == blue_roster]
-        red_stats = [stat for stat in stats if stat.roster_player.roster == red_roster]
+        blue_stats = [stat for stat in stats if stat.roster_player.roster_id == blue_roster.id]
+        red_stats = [stat for stat in stats if stat.roster_player.roster_id == red_roster.id]
 
         games_data.append({
             'game': game,
@@ -290,12 +300,27 @@ def match_detail(request, match_id):
             'red_roster': red_roster,
         })
 
+    # --- Aggregate totals for all players in this match ---
+    player_totals = defaultdict(lambda: {'kills': 0, 'deaths': 0, 'assists': 0, 'player': None, 'roster': None})
+    for stat in all_stats:
+        key = (stat.roster_player.player.id, stat.roster_player.roster.id)
+        player_totals[key]['player'] = stat.roster_player.player
+        player_totals[key]['roster'] = stat.roster_player.roster
+        player_totals[key]['kills'] += stat.kills
+        player_totals[key]['deaths'] += stat.deaths
+        player_totals[key]['assists'] += stat.assists
+
+    # Split by team/roster for easy table rendering
+    blue_players = [v for k, v in player_totals.items() if v['roster'].id == match.blue_roster.id]
+    red_players = [v for k, v in player_totals.items() if v['roster'].id == match.red_roster.id]
+
     context = {
         'match': match,
         'games_data': games_data,
+        'blue_players': blue_players,
+        'red_players': red_players,
     }
     return render(request, 'esport/match_detail.html', context)
-
 
 def tournament_scoreboard(request, slug):
     tournament = get_object_or_404(Tournament, slug=slug)
