@@ -43,7 +43,6 @@ INSTALLED_APPS = [
     'django.contrib.admin',
     # Apps
     'esport.apps.EsportConfig',
-    'polls.apps.PollsConfig',
     'users.apps.UsersConfig',
 
     'django.contrib.auth',

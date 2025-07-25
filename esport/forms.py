@@ -10,5 +10,5 @@ class MatchPredictionForm(forms.Form):
     def __init__(self, *args, match=None, **kwargs):
         super().__init__(*args, **kwargs)
         if match:
-            self.fields["predicted_winner"].queryset = Team.objects.filter(id__in=[match.team1.id, match.team2.id])
+            self.fields["predicted_winner"].queryset = Team.objects.filter(id__in=[match.blue_roster.id, match.red_roster.id])
             self.fields["match_id"].initial = match.id

@@ -7,8 +7,9 @@ from django.contrib import messages
 from .models import Match, MatchDay, MVPDayVote, MVPResetState, Prediction, Player, PlayerStats, Roster, RosterPlayer, Tournament, Team, UserProfile
 from .forms import MatchPredictionForm
 from django.forms import formset_factory
+from django.urls import reverse
 from django.utils import timezone
-from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.utils.decorators import method_decorator
 from .utils import get_possible_scores 
 
@@ -120,7 +121,7 @@ def matchlist(request, slug):
         'has_voted_all': has_voted_all,
     })
 
-class PredictionView(View):
+class PredictionView(LoginRequiredMixin, View):
     def get(self, request, slug):
         tournament = get_object_or_404(Tournament, slug=slug)
         today = timezone.now().date()
@@ -142,7 +143,7 @@ class PredictionView(View):
                 can_pick_mvp_today = not already_started
             else:
                 matchs_a_venir = list(matchday.matches.all())
-            # Tu peux stocker le résultat sur matchday ou le passer à ton contexte
+            
             matchday.upcoming_matches = matchs_a_venir
             for match in matchs_a_venir:
                 match.possible_scores = get_possible_scores(match)
@@ -204,6 +205,12 @@ class PredictionView(View):
             fantasy_pick_id = request.POST.get(f"fantasy_{matchday.id}")
             if fantasy_pick_id:
                 picks_by_day[matchday.id] = int(fantasy_pick_id)
+        
+        all_picks = list(picks_by_day.values())
+        duplicates = set([x for x in all_picks if all_picks.count(x) > 1])
+        if duplicates:
+            messages.error(request, "You cannot select the same player as MVP for multiple upcoming days.")
+            return redirect(request.path)
 
         # Load all existing MVPDayVotes for this tournament & reset
         existing_votes = MVPDayVote.objects.filter(
