@@ -11,6 +11,9 @@
             <ul class="space-y-3">
                 {% for tournament in tournaments_going %}
                     <li class="bg-white rounded-lg shadow flex items-center justify-between p-4 hover:bg-blue-50">
+                        {% if tournament.logo %}
+                            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}" class=" rounded-full object-cover">
+                        {% endif %}
                         <a href="{% url 'esport:matchlist' tournament.slug %}" class="font-semibold text-lg text-blue-700 hover:underline">
                             {{ tournament.name }}
                         </a>
@@ -31,6 +34,9 @@
             <ul class="space-y-3">
                 {% for tournament in tournaments_past %}
                     <li class="bg-gray-50 rounded-lg flex items-center justify-between p-4 hover:bg-gray-100">
+                        {% if tournament.logo %}
+                            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}" class="w-10 h-10 rounded-full object-cover border border-gray-300 shadow-sm">
+                        {% endif %}
                         <a href="{% url 'esport:matchlist' tournament.slug %}" class="font-medium text-gray-800 hover:underline">
                             {{ tournament.name }}
                         </a>

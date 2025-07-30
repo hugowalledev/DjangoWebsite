@@ -9,6 +9,8 @@ class Tournament(models.Model):
     region = models.CharField(max_length=255)
     date_started = models.DateField("date started")
     date_ended = models.DateField("date ended")
+    logo = models.ImageField(upload_to="tournaments", blank=True, null=True)
+    logo_dark = models.ImageField(upload_to="tournaments", blank=True, null=True)
     liquipedia_url = models.URLField(blank=True, null=True)
     slug = models.SlugField(unique=True)
 

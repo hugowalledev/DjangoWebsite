@@ -1,7 +1,7 @@
 from django import forms
 from django.contrib import admin
 from django.urls import reverse
-from django.utils.html import format_html
+from django.utils.html import format_html, format_html_join
 from .models import Champion, Game, MatchDay, Match, MVPDayVote, Team, Tournament, Player, PlayerStats, Prediction, Roster, RosterPlayer
 from .utils import get_possible_scores
 from users.models import UserProfile
@@ -251,6 +251,33 @@ class RosterPlayerAdmin(admin.ModelAdmin):
     autocomplete_fields = ("player", "roster")
     list_display = ("player", "roster", "is_starter", "role")
     list_display_links = ("player", "roster")
+    readonly_fields = ("player_rosters",)
+
+    fieldsets = (
+        (None, {
+            'fields': ("player", "roster", "is_starter", "role", "player_rosters")
+        }),
+    )
+
+    def player_rosters(self, obj):
+        if not obj.player:
+            return "-"
+        rosters = RosterPlayer.objects.filter(player=obj.player).select_related("roster__team", "roster__tournament").order_by("-roster__year")
+        if not rosters:
+            return "No rosters found."
+
+        # Optional: limit initial display and make it expandable with a bit of JS
+        html = '<ul id="roster-list" style="max-height: 100px; overflow-y: auto; padding-left: 1em;">'
+        for rp in rosters:
+            url = reverse("admin:esport_roster_change", args=[rp.roster.id])
+            label = f"{rp.roster.team.name} - {rp.roster.tournament.name} ({rp.roster.year})"
+            html += f'<li><a href="{url}" target="_blank">{label}</a></li>'
+        html += "</ul>"
+
+        return format_html(html)
+
+    player_rosters.short_description = "All rosters this player has been in"
+
 
 @admin.register(UserProfile)
 class UserProfileAdmin(admin.ModelAdmin):

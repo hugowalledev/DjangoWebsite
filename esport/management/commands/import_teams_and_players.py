@@ -49,15 +49,16 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
 
         headers = {'User-Agent': 'Mozilla/5.0'}
-        for tournament in Tournament.objects.filter(date_ended__gte=date(2025,6,30), date_started__lte=date.today()+timedelta(days=2)).order_by('date_started'):
+        for tournament in Tournament.objects.filter(date_ended__gte=date.today(), date_started__lte=date.today()+timedelta(days=7)).order_by('date_started'):
             url = tournament.liquipedia_url
             
             try:
                 res = requests.get(url, headers=headers)
-                res.raise_for_status()  # Raises HTTPError if not 2xx
+                res.raise_for_status()
             except requests.RequestException as e:
                 print(f"Request failed for {url}: {e}")
-                return  # or handle accordingly
+                return
+
             soup = BeautifulSoup(res.text, 'html.parser')
             year = tournament.date_started.year
             self.stdout.write(self.style.NOTICE(
@@ -131,7 +132,7 @@ class Command(BaseCommand):
                             continue
 
                         filename = f"{slugify(team_name)}.png"
-                        upload_dir = obj_team.logo.field.upload_to  # 'teams'
+                        upload_dir = obj_team.logo.field.upload_to  
                         full_path = os.path.join(settings.MEDIA_ROOT, upload_dir, filename)
 
                         # Delete the existing file on disk if it exists (not just from the model)
@@ -154,10 +155,18 @@ class Command(BaseCommand):
                             year = year,
                         )
                         table = teamcard_inner.find('table', attrs={"data-toggle-area-content":"1"}) if teamcard_inner else None
+                        table_sub = None
                         if len(tables) == 4 :
-                            table_sub = teamcard_inner.find('table', attrs={"data-toggle-area-content":"2"})
-                        else:
-                            table_sub = None    
+                            tr = table.find_all('tr')[-1]
+                            spans = tr.find_all('span')
+
+                            if spans:
+                                # Determine which span to use
+                                target_span = spans[0] if spans[0].get_text().strip() != "Staff" else spans[1]
+                                area = target_span.get('data-toggle-area-btn')
+
+                                if area:
+                                    table_sub = teamcard_inner.find('table', attrs={"data-toggle-area-content": area}) 
                         
 
 

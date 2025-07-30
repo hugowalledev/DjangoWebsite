@@ -1,7 +1,10 @@
+import os
 import re
 import requests
 from datetime import datetime
 from bs4 import BeautifulSoup
+from django.conf import settings
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from esport.models import Tournament
 from django.utils.text import slugify
@@ -55,12 +58,10 @@ def parse_liquipedia_dates(date_str):
         dt = datetime.strptime(date_str, "%Y-%m-%d").date()
         return dt, dt
 
-    # Pattern 6: If "Month Day, Year" appears in end only, try using it for both start and end
     if ' - ' in date_str:
         parts = date_str.split(' - ')
         if len(parts) == 2:
             start, end = parts
-            # Fill in year for start if not present
             year_match = re.search(r"\d{4}", end)
             if year_match and not re.search(r"\d{4}", start):
                 start = f"{start}, {year_match.group(0)}"
@@ -74,6 +75,38 @@ def parse_liquipedia_dates(date_str):
     
     return None, None
 
+def fetch_and_save_logo(obj, image_url, field_name, tournament_name, style, debug_label=""):
+    """
+    Fetches an image from `image_url`, deletes the existing file (if any),
+    and saves the new image to the specified field on `obj`.
+
+    :param obj: Django model instance
+    :param image_url: full image URL to download
+    :param field_name: string, the name of the ImageField (e.g., 'logo' or 'logo_dark')
+    :param tournament_name: used for filename generation
+    :param style: self.style object from Django management command
+    :param debug_label: optional tag for debug messages
+    """
+    field = getattr(obj, field_name)
+    upload_dir = field.field.upload_to
+    filename = f"{slugify(tournament_name)}{'-' + debug_label if debug_label else ''}.png"
+    full_path = os.path.join(settings.MEDIA_ROOT, upload_dir, filename)
+
+    # Remove existing file
+    try:
+        if os.path.exists(full_path):
+            os.remove(full_path)
+    except Exception as e:
+        print(style.WARNING(f"Error deleting {full_path}: {e}"))
+
+    # Download and save new image
+    response = requests.get(image_url)
+    if response.status_code == 200:
+        field.save(filename, ContentFile(response.content), save=True)
+        print(style.NOTICE(f"[DEBUG] {debug_label} logo saved: {field.name}"))
+    else:
+        print(style.NOTICE(f"[DEBUG] Could not fetch {debug_label} logo: {image_url}"))
+
 class Command(BaseCommand):
     help = "Imports S-Tier tournaments from Liquipedia and saves to Tournament model."
     def handle(self, *args, **options):
@@ -82,31 +115,29 @@ class Command(BaseCommand):
         soup = BeautifulSoup(res.text, 'html.parser')
         grid_tables = soup.select("div.gridTable")
         count = 0
-        # Loop through years and tournament tables
         for grid_table in grid_tables:
             for row in grid_table.select('.gridRow'):
                 cells = row.find_all("div", class_="gridCell")
                 if len(cells) < 1:
                     continue
-                # Tournament Name
                 a_tags = cells[0].find_all('a')
+
                 if not a_tags: 
                     continue
                 tournament_link = a_tags[-1]
                 tournament_name = tournament_link.text.strip()
                 tournament_slug = slugify(tournament_name)
+                
+                
                 liquipedia_url = "https://liquipedia.net" + tournament_link.get("href", "")
-                # Date String
                 date_str = cells[1].get_text(strip=True)
-                # Parse dates
                 start_date, end_date = parse_liquipedia_dates(date_str)
                 
-                # Save to Django ORM
                 obj, created = Tournament.objects.get_or_create(
                     slug=tournament_slug,
                     defaults={
                         'name': tournament_name,
-                        'region': '',  # You may parse region if desired
+                        'region': '',
                         'date_started': start_date,
                         'date_ended': end_date,
                         'liquipedia_url': liquipedia_url,
@@ -121,6 +152,20 @@ class Command(BaseCommand):
                     self.stdout.write(self.style.NOTICE(
                         f"Exists: {tournament_name}"
                     ))
+
+                tournament_dark = cells[0].find('span', class_="darkmode")
+                tournament_logo = cells[0].find('img')
+                # Light logo
+                tournament_logo_url = f"https://liquipedia.net{tournament_logo['src']}"
+                fetch_and_save_logo(obj, tournament_logo_url, "logo", tournament_name, self.style)
+
+                # Dark logo
+                if tournament_dark:
+                    tournament_dark_logo = tournament_dark.find('img')
+                    if tournament_dark_logo:
+                        tournament_dark_logo_url = f"https://liquipedia.net{tournament_dark_logo['src']}"
+                        fetch_and_save_logo(obj, tournament_dark_logo_url, "logo_dark", tournament_name, self.style, debug_label="dark")
+
+
         self.stdout.write(self.style.SUCCESS(f"\nImported {count} tournaments."))
-    # --- Usage ---
-    # In Django shell: >>> fetch_and_populate_tournaments()
+ 
