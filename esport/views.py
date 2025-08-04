@@ -74,11 +74,20 @@ class TournamentListView(generic.TemplateView):
         ).order_by('date_started')
 
         # Past tournaments, ended before today
-        context['tournaments_past'] = Tournament.objects.filter(
+        tournaments_past = Tournament.objects.filter(
             date_ended__lt=now
         ).order_by('-date_started')
+
+        tournaments_by_year = defaultdict(list)
+        for t in tournaments_past:
+            year = t.date_ended.year  # assure compatibilité timezone
+            tournaments_by_year[year].append(t)
+
+        # Trie les années dans l'ordre décroissant
+        context['tournaments_by_year'] = sorted(tournaments_by_year.items(), reverse=True)
+
         return context
-        
+
 def matchlist(request, slug):
     tournament = get_object_or_404(Tournament, slug=slug)
     now = timezone.now()
@@ -253,7 +262,6 @@ class PredictionView(LoginRequiredMixin, View):
                 try:
                     winner_roster = Roster.objects.get(id=winner_id)
                 except Roster.DoesNotExist:
-                    print("Invalid winner_roster ID:", winner_id)
                     continue
 
                 if winner_id and predicted_score:

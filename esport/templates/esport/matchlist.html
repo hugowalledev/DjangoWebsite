@@ -4,66 +4,93 @@
 
 {% block content %}
 <div class="max-w-4xl mx-auto mt-10 px-4 sm:px-6 lg:px-8">
-    <h1 class="text-3xl font-bold text-gray-900 mb-6 text-center">
-        {{ tournament.name }}
-    </h1>
+    <div>
+        {% if tournament.logo and tournament.logo_dark %}
+            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                class="center w-12 h-12 rounded-full object-contain bg-slate-600 p-1 shrink-0 block dark:hidden">
+            
+            <img src="{{ tournament.logo_dark.url }}" alt="{{ tournament.name }}"
+                class="center w-12 h-12 rounded-full object-contain bg-slate-700 p-1 shrink-0 hidden dark:block">
+        {% elif tournament.logo%}
+            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                class="center w-12 h-12 rounded-full object-contain bg-slate-600 p-1 shrink-0">
+        {% endif %}
+        <h1 class="text-3xl font-bold text-blue-300 dark:text-blue-200 mb-6 ">
+            {{ tournament.name }} :
+        </h1>
+    </div>
 
-   <ul class="space-y-4">
+    <ul class="space-y-4">
         {% for match in upcoming_matches %}
-            <li class="bg-white rounded-2xl shadow p-4 hover:bg-gray-50 transition flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <!-- Match info -->
-                <div class="flex flex-col sm:flex-row sm:items-center sm:gap-4 flex-1">
-                    <!-- Teams & logos -->
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
-                            class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.blue_roster.team.name }}</span>
+            <li class="bg-slate-700 dark:bg-slate-800 rounded-2xl shadow p-4 hover:bg-slate-600 dark:hover:bg-slate-700 transition">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                
+                <!-- Team Names + Logos -->
+                <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap flex-1 min-w-0">
+                    <!-- Blue team -->
+                    <div class="group flex items-center gap-2 min-w-0 truncate">
+                        <div>
+                            <img src="{{ match.blue_roster.team.logo.url }}"
+                                alt="{{ match.blue_roster.team.name }} logo"
+                                class="absolute opacity-40 blur group-hover:opacity-80 duration-500 w-10 h-10 ">
+                            <img src="{{ match.blue_roster.team.logo.url }}"
+                                alt="{{ match.blue_roster.team.name }} logo"
+                                class="w-10 h-10 object-contain">
+                        </div>
+                        <span class="text-base font-medium text-gray-100 truncate">
+                        {{ match.blue_roster.team.name }}
+                        </span>
                     </div>
-                    <span class="mx-2 text-base text-gray-400 font-semibold">vs</span>
-                    <div class="flex items-center gap-2 flex-shrink-0">
-                        <span class="text-lg font-semibold text-gray-800">{{ match.red_roster.team.name }}</span>
-                        <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
-                            class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm">
-                    </div>
+                    <!-- VS -->
+                    <span class="text-sm text-slate-400 dark:text-slate-300 font-semibold">vs</span>
 
-                    <!-- Prediction badge -->
-                    <div class="sm:ml-6 mt-2 sm:mt-0 flex items-center">
-                        {% with prediction=user_predictions|get_item:match.id %}
-                            {% if user.is_authenticated and prediction %}
-                                <span class="ml-3 inline-flex items-center px-2.5 py-0.5 rounded bg-green-100 text-green-800 text-xs font-semibold cursor-pointer relative"
-                                    onmouseenter="showDetailTooltip({{ match.id }})"
-                                    onmouseleave="hideDetailTooltip({{ match.id }})">
-                                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                                    </svg>
-                                    Pronostiqué
-                                    <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-4 py-2 shadow-xl whitespace-nowrap">
-                                        Prediction: {{ prediction.predicted_winner.name }} ({{ prediction.predicted_score }})
-                                    </span>
-                                </span>
-                            {% endif %}
-                        {% endwith %}
+                    <!-- Red team -->
+                    <div class="group flex items-center gap-2 min-w-0 truncate">
+                        <span class="text-base font-medium text-gray-100 truncate">
+                        {{ match.red_roster.team.name }}
+                        </span>
+                        <div>
+                            <img src="{{ match.red_roster.team.logo.url }}"
+                                alt="{{ match.red_roster.team.name }} logo"
+                                class="absolute opacity-40 blur group-hover:opacity-80 object-contain duration-500 w-10 h-10 ">
+                            <img src="{{ match.red_roster.team.logo.url }}"
+                                alt="{{ match.red_roster.team.name }} logo"
+                                class="w-10 h-10 object-contain">
+                        </div>
                     </div>
                 </div>
 
-                <!-- Date + timer -->
-                <div class="flex flex-col items-end min-w-max mt-4 sm:mt-0">
-                    <span class="scheduled-time block text-gray-500 text-sm"
-                          data-utc="{{ match.scheduled_time|date:'c' }}">
-                        <!-- Will be replaced by JS -->
-                        
+                <!-- Timer -->
+                <div class="flex flex-col items-end text-sm min-w-max">
+                <span class="scheduled-time text-gray-400 dark:text-gray-300" data-utc="{{ match.scheduled_time|date:'c' }}"></span>
+                <span class="font-mono text-blue-400 text-base countdown" data-time="{{ match.scheduled_time|date:'U' }}"></span>
+                </div>
+            </div>
+
+            <!-- Prediction badge -->
+            {% with prediction=user_predictions|get_item:match.id %}
+                {% if user.is_authenticated and prediction %}
+                <div class="mt-2">
+                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-200 text-green-800 text-xs font-medium relative cursor-pointer"
+                        onmouseenter="showDetailTooltip({{ match.id }})"
+                        onmouseleave="hideDetailTooltip({{ match.id }})">
+                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                    </svg>
+                    Predicted
+                    <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                        {{ prediction.predicted_winner.name }} ({{ prediction.predicted_score }})
                     </span>
-                    <span 
-                        class="font-mono text-blue-600 text-base countdown"
-                        data-time="{{ match.scheduled_time|date:'U' }}">
-                        <!-- Timer JS -->
                     </span>
                 </div>
+                {% endif %}
+            {% endwith %}
             </li>
         {% empty %}
-            <li class="text-gray-500">Aucun match à venir pour ce tournoi.</li>
+            <li class="text-gray-500 dark:text-gray-400">No match incoming.</li>
         {% endfor %}
-    </ul>
+        </ul>
+
 
     
     <div class="mt-8 text-center">
@@ -93,28 +120,28 @@
     </div>
 
     <div class="max-w-2xl mx-auto my-8">
-        <a href="{% url 'esport:tournament_scoreboard' tournament.slug %}" class="btn text-xl font-bold text-gray-700 mb-4 text-center">Scoreboard</a>
-        <table class="min-w-full bg-white rounded-xl shadow">
+        <a href="{% url 'esport:tournament_scoreboard' tournament.slug %}" class="btn text-xl font-bold text-gray-700 dark:text-gray-100 hover:text-gray-400 mb-4 text-center">Scoreboard</a>
+        <table class="min-w-full bg-white dark:bg-slate-700 rounded-xl shadow">
             <thead>
             <tr>
                 <th class="px-4 py-2">#</th>
-                <th class="px-4 py-2 text-left">Utilisateur</th>
-                <th class="px-4 py-2 text-center">Points totaux</th>
+                <th class="px-4 py-2 text-left">User</th>
+                <th class="px-4 py-2 text-center">Total points</th>
                 <th class="px-4 py-2 text-center">Matchs</th>
                 <th class="px-4 py-2 text-center">MVP</th>
             </tr>
             </thead>
             <tbody>
             {% for entry in leaderboard %}
-                <tr class="{% if forloop.first %}bg-yellow-100{% elif forloop.counter == 2 %}bg-gray-100{% elif forloop.counter == 3 %}bg-orange-50{% endif %}">
+                <tr class="{% if forloop.first %}bg-yellow-100 dark:bg-yellow-800{% elif forloop.counter == 2 %}bg-gray-100 dark:bg-gray-800{% elif forloop.counter == 3 %}bg-orange-50 dark:bg-green-700{% endif %}">
                 <td class="px-4 py-2 text-center font-semibold">{{ forloop.counter }}</td>
                 <td class="px-4 py-2">{{ entry.user.username }}</td>
                 <td class="px-4 py-2 text-center font-bold">{{ entry.points|floatformat:"0" }}</td>
-                <td class="px-4 py-2 text-center text-blue-700">{{ entry.match_points|floatformat:"0" }}</td>
-                <td class="px-4 py-2 text-center text-purple-700">{{ entry.mvp_points|floatformat:"1" }}</td>
+                <td class="px-4 py-2 text-center text-blue-700 dark:text-blue-300">{{ entry.match_points|floatformat:"0" }}</td>
+                <td class="px-4 py-2 text-center text-purple-700 dark:text-purple-400">{{ entry.mvp_points|floatformat:"1" }}</td>
                 </tr>
             {% empty %}
-                <tr><td colspan="5" class="text-center text-gray-500 py-4">Aucun participant pour ce tournoi.</td></tr>
+                <tr><td colspan="5" class="text-center text-gray-500 py-4">No participant.</td></tr>
             {% endfor %}
             </tbody>
         </table>
@@ -128,56 +155,56 @@
     <hr class="my-8">
 
     <!-- Past matches section -->
-    <h2 class="text-xl font-bold text-gray-700 mb-4 text-center">Matchs joués</h2>
+    <h2 class="text-xl font-bold text-slate-700 dark:text-slate-400 mb-4 text-center">Matches played</h2>
     {% if matches_by_day %}
         {% for day, matches in matches_by_day %}
-            <h3 class="text-lg font-semibold text-gray-600 mt-6 mb-2 text-center">
+            <h3 class="text-lg font-semibold text-slate-600 dark:text-slate-300 mt-6 mb-2 text-center">
                 {{ day|date:"l d F Y" }}
             </h3>
             <ul class="space-y-4">
                 {% for match in matches %}
-                    <li class="rounded-2xl shadow bg-gray-50 overflow-hidden">
-                        <a href="{% url 'esport:match_detail' match.id %}" class="block hover:bg-blue-50 transition p-4 grid grid-cols-3 items-center">
-                            <!-- Blue Team -->
-                            <div class="flex items-center gap-2 justify-end w-full">
-                                <span class="
-                                    flex items-center gap-2 px-2 py-1 rounded-lg
+                    <li class="rounded-2xl shadow bg-slate-700 overflow-hidden">
+                        <a href="{% url 'esport:match_detail' match.id %}" class="block hover:bg-slate-600 transition p-4 grid grid-cols-3 items-center">
+                            <!-- Blue Team (gauche) -->
+                            <div class="flex items-center gap-2 justify-start w-full">
+                                <span class="flex items-center gap-2 px-2 py-1 rounded-lg
                                     {% if match.winner and match.winner == match.blue_roster %}
-                                        bg-gradient-to-r from-green-200 to-green-50
+                                        bg-gradient-to-r from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
                                     {% endif %}
                                 ">
                                     <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
-                                        class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm
-                                                {% if match.winner and match.winner == match.blue_roster %}ring-2 ring-green-500{% endif %}">
+                                        class="w-10 h-10 rounded-full object-contain p-1 shrink-0 bg-slate-600 
+                                            {% if match.winner and match.winner == match.blue_roster %}ring-2 ring-green-500 dark:ring-emerald-600 bg-green-200 dark:bg-emerald-400{% endif %}">
                                     <span class="text-lg font-semibold
-                                        {% if match.winner and match.winner == match.blue_roster %}text-green-700{% else %}text-gray-800{% endif %}">
+                                        {% if match.winner and match.winner == match.blue_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
                                         {{ match.blue_roster.team.name }}
                                     </span>
                                 </span>
                             </div>
-                            <!-- Score (centered) -->
-                            <div class="flex flex-col items-center min-h-[36px] min-w-[70px]">
+
+                            <!-- Score (centre) -->
+                            <div class="flex flex-col items-center justify-center min-h-[36px] min-w-[70px]">
                                 {% if match.score_str %}
-                                    <span class="text-2xl font-bold text-blue-700">{{ match.score_str }}</span>
+                                    <span class="text-2xl font-bold text-blue-700 dark:text-emerald-500">{{ match.score_str }}</span>
                                 {% else %}
                                     <span class="invisible text-2xl font-bold">0 - 0</span>
                                 {% endif %}
                             </div>
-                            <!-- Red Team -->
-                            <div class="flex items-center gap-2 justify-start w-full">
-                                <span class="
-                                    flex items-center gap-2 px-2 py-1 rounded-lg
+
+                            <!-- Red Team (droite) -->
+                            <div class="flex items-center gap-2 justify-end w-full text-right">
+                                <span class="flex items-center gap-2 px-2 py-1 rounded-lg
                                     {% if match.winner and match.winner == match.red_roster %}
-                                        bg-gradient-to-l from-green-200 to-green-50
+                                        bg-gradient-to-l from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
                                     {% endif %}
                                 ">
                                     <span class="text-lg font-semibold
-                                        {% if match.winner and match.winner == match.red_roster %}text-green-700{% else %}text-gray-800{% endif %}">
+                                        {% if match.winner and match.winner == match.red_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
                                         {{ match.red_roster.team.name }}
                                     </span>
                                     <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
-                                        class="w-10 h-10 rounded-full object-cover border border-gray-200 shadow-sm
-                                                {% if match.winner and match.winner == match.red_roster %}ring-2 ring-green-500{% endif %}">
+                                        class="w-10 h-10 rounded-full object-contain p-1 shrink-0 bg-slate-600
+                                            {% if match.winner and match.winner == match.red_roster %}ring-2 ring-green-500 dark:ring-emerald-600 bg-green-200 dark:bg-emerald-400{% endif %}">
                                 </span>
                             </div>
                         </a>
@@ -186,7 +213,7 @@
             </ul>
         {% endfor %}
     {% else %}
-        <ul><li class="text-gray-500">Aucun match passé pour ce tournoi.</li></ul>
+        <ul><li class="text-gray-500">No matches played yet</li></ul>
     {% endif %}
 </div>
 

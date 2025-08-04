@@ -1,87 +1,111 @@
 {% extends "base.html" %}
 {% block content %}
+{% load custom_filters %}
 <div class="max-w-7xl mx-auto p-4">
-    <h1 class="text-3xl font-bold text-center mb-8 text-blue-900 tracking-tight drop-shadow">
+    <h1 class="text-3xl font-bold text-center mb-8 text-blue-900 dark:text-blue-300 tracking-tight drop-shadow">
         Scoreboard – {{ tournament.name }}
     </h1>
     {% if scoreboard_rows %}
-    <div class="overflow-x-auto rounded-2xl shadow border border-gray-200">
-    <table class="min-w-full text-sm bg-white rounded-2xl">
-        <thead>
-            <tr>
-                <th class="bg-gray-200 sticky left-0 z-20 text-gray-700 font-semibold py-3 px-4 rounded-tl-2xl">#</th>
-                <th class="bg-gray-200 sticky left-0 z-20 text-gray-700 font-semibold py-3 px-4">Utilisateur</th>
-                {% for day in matchdays %}
-                    <th colspan="3" class="bg-gradient-to-tr from-blue-100 to-blue-50 text-blue-800 text-center font-bold px-6 py-3 border-l border-gray-200">
-                        {{ day.date|date:"D d M" }}
-                    </th>
-                {% endfor %}
-                <th class="bg-green-100 text-green-900 font-bold text-center px-4 py-3 rounded-tr-2xl border-l border-green-300">Total</th>
-            </tr>
-            <tr class="border-b border-gray-200">
-                <th class="bg-gray-100 sticky left-0 z-20"></th>
-                <th class="bg-gray-100 sticky left-0 z-20"></th>
-                {% for day in matchdays %}
-                    <th class="text-center font-semibold text-blue-700">Matchs</th>
-                    <th class="text-center font-semibold text-blue-700">MVP</th>
-                    <th class="text-center font-semibold text-blue-700">Score</th>
-                {% endfor %}
-                <th></th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for row in scoreboard_rows %}
-            <tr class="{% cycle 'bg-white' 'bg-gray-50' %} {% if user.is_authenticated and user.username == row.user.username %}ring-2 ring-blue-300 bg-blue-50{% endif %}">
-                <td class="font-extrabold text-blue-900 text-center sticky left-0 bg-inherit z-10 px-3 py-2">{{ row.rank }}</td>
-                <td class="font-semibold sticky left-0 bg-inherit z-10 px-3 py-2">{{ row.user.username }}</td>
-                {% for day in row.days %}
-                    <td class="text-xs text-center px-2 py-1">
-                        {% for pred in day.preds %}
-                            <span class="inline-block px-2 py-1 rounded-lg
-                              {% if pred.is_correct %}bg-green-100 text-green-800 font-semibold{% else %}bg-red-100 text-red-800 font-semibold{% endif %}
-                              mb-1">
-                                {{ pred.predicted_winner.team.name }} ({{ pred.predicted_score }})
-                            </span>
-                        {% empty %}
-                            <span class="text-gray-400">-</span>
-                        {% endfor %}
+    <div class="overflow-x-auto rounded-2xl shadow border border-gray-200 dark:border-slate-600">
+        <table class="min-w-full text-sm bg-white dark:bg-slate-800 rounded-2xl">
+            <thead>
+                <tr>
+                    <th class="bg-gray-200 dark:bg-slate-700 sticky left-0 z-20 text-gray-700 dark:text-slate-200 font-semibold py-3 px-4 rounded-tl-2xl">#</th>
+                    <th class="bg-gray-200 dark:bg-slate-700 sticky left-0 z-20 text-gray-700 dark:text-slate-200 font-semibold py-3 px-4">Utilisateur</th>
+                    {% for day in matchdays %}
+                        <th colspan="3" class="bg-gradient-to-tr from-blue-100 to-blue-50 dark:from-slate-700 dark:to-slate-800 text-blue-800 dark:text-blue-200 text-center font-bold px-6 py-3 border-l border-gray-200 dark:border-slate-600">
+                            {{ day.date|date:"D d M" }}
+                        </th>
+                    {% endfor %}
+                    <th class="bg-green-100 dark:bg-green-900 text-green-900 dark:text-green-200 font-bold text-center px-4 py-3 rounded-tr-2xl border-l border-green-300 dark:border-green-700">Total</th>
+                </tr>
+                <tr class="border-b border-gray-200 dark:border-slate-700">
+                    <th class="bg-gray-100 dark:bg-slate-800 sticky left-0 z-20"></th>
+                    <th class="bg-gray-100 dark:bg-slate-800 sticky left-0 z-20"></th>
+                    {% for day in matchdays %}
+                        <th class="text-center font-semibold text-blue-700 dark:text-blue-300">Matchs</th>
+                        <th class="text-center font-semibold text-blue-700 dark:text-blue-300">MVP</th>
+                        <th class="text-center font-semibold text-blue-700 dark:text-blue-300">Score</th>
+                    {% endfor %}
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in scoreboard_rows %}
+                <tr class="{% cycle 'bg-white dark:bg-slate-900' 'bg-gray-50 dark:bg-slate-800' %} {% if user.is_authenticated and user.username == row.user.username %}ring-2 ring-blue-300 bg-blue-50 dark:bg-blue-950{% endif %}">
+                    <td class="font-extrabold text-blue-900 dark:text-blue-200 text-center sticky left-0 bg-inherit z-10 px-3 py-2">{{ row.rank }}</td>
+                    <td class="font-semibold text-gray-800 dark:text-gray-200 sticky left-0 bg-inherit z-10 px-3 py-2">{{ row.user.username }}</td>
+                    {% for day in row.days %}
+                        <td class="text-xs text-center px-2 py-1">
+                            {% for pred in day.preds %}
+                                <div class="relative inline-block">
+                                    <span class="inline-block px-2 py-1 cursor-pointer rounded-lg font-semibold mb-1
+                                        {% if pred.predicted_winner == pred.match.winner and pred.predicted_score == pred.match.score_str %}
+                                            bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                                        {% elif pred.predicted_winner == pred.match.winner and pred.reversed_score_str == pred.match.score_str %}
+                                            bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200
+                                        {% elif pred.predicted_winner == pred.match.winner or pred.predicted_score == pred.match.score_str or pred.reversed_score_str == pred.match.score_str %}
+                                            bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200
+                                        {% elif not pred.match.winner %}
+                                            bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-200
+                                        {% else %}
+                                            bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200
+                                        {% endif %}
+                                    "
+                                        onmouseenter="showDetailTooltip({{ pred.match.id }})"
+                                        onmouseleave="hideDetailTooltip({{ pred.match.id }})">
+                                        {{ pred.predicted_winner.team.name }} ({{ pred.predicted_score }})
+                                    </span>
+                                    {% if pred.match.winner %}
+                                        <span id="tooltip-{{ pred.match.id }}" class="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/3 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-4 py-2 shadow-xl whitespace-nowrap">
+                                            {{ pred.match.winner.team.name }} : {{pred.match.score_str}}
+                                        </span>
+                                    {% endif %}
+                                </div>
+                            {% empty %}
+                                <span class="text-gray-400 dark:text-slate-500">-</span>
+                            {% endfor %}
+                        </td>
+                        <td class="text-center relative">
+                            {% if day.mvp %}
+                                <span class="inline-block bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-200 px-2 py-1 rounded-full font-medium cursor-pointer"
+                                      onmouseenter="showDetailTooltip({{ day.mvp.id }})"
+                                      onmouseleave="hideDetailTooltip({{ day.mvp.id }})">
+                                    {{ day.mvp.fantasy_pick.player.name }}
+                                </span>
+                                {% if day.mvp_points != 0 %}
+                                    <span id="tooltip-{{ day.mvp.id }}" class="pointer-events-none absolute left-1/2 -translate-x-1/2 -translate-y-1/3 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-4 py-2 shadow-xl whitespace-nowrap">
+                                        KDA: ({{ day.mvp_points|float1 }})
+                                    </span>
+                                {% endif %}
+                            {% else %}
+                                <span class="text-gray-400 dark:text-slate-500">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center font-bold {% if day.day_total > 0 %}text-blue-700 dark:text-blue-300{% else %}text-gray-500 dark:text-slate-500{% endif %}">
+                            {{ day.day_total|float1 }}
+                        </td>
+                    {% endfor %}
+                    <td class="text-center font-extrabold text-lg bg-gradient-to-tr from-green-200 to-green-100 dark:from-green-800 dark:to-green-700 text-green-900 dark:text-green-200 border-l-2 border-green-300 dark:border-green-800 shadow-inner">
+                        {{ row.total|float1 }}
                     </td>
-                    <td class="text-center relative">
-                        {% if day.mvp %}
-                            <span class="inline-block bg-purple-100 text-purple-700 px-2 py-1 rounded-full font-medium cursor-pointer"
-                                onmouseenter="showDetailTooltip({{ day.mvp.id }})"
-                                onmouseleave="hideDetailTooltip({{ day.mvp.id }})">
-                                {{ day.mvp.fantasy_pick.player.name }}
-                            </span>
-                            <span id="tooltip-{{ day.mvp.id }}" class="absolute left-1/2 -translate-x-1/2 -translate-y-1/3 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-4 py-2 shadow-xl whitespace-nowrap">
-                                KDA: ({{ day.mvp_points }})
-                            </span>
-                        {% else %}
-                            <span class="text-gray-400">-</span>
-                        {% endif %}
-                    </td>
-                    <td class="text-center font-bold {% if day.day_total > 0 %}text-blue-700{% else %}text-gray-500{% endif %}">{{ day.day_total }}</td>
+                </tr>
                 {% endfor %}
-                <td class="text-center font-extrabold text-lg bg-gradient-to-tr from-green-200 to-green-100 text-green-900 border-l-2 border-green-300 shadow-inner">
-                    {{ row.total }}
-                </td>
-            </tr>
-        {% endfor %}
-        </tbody>
-    </table>
+            </tbody>
+        </table>
     </div>
     {% else %}
-        <div class="text-gray-500 text-center">Aucune participation sur ce tournoi.</div>
+        <div class="text-gray-500 dark:text-slate-400 text-center">Aucune participation sur ce tournoi.</div>
     {% endif %}
 </div>
 
 <script>
     function showDetailTooltip(mvpId) {
-            var tooltip = document.getElementById("tooltip-" + mvpId);
-            if (tooltip) {
-                tooltip.classList.remove("hidden");
-            }
+        var tooltip = document.getElementById("tooltip-" + mvpId);
+        if (tooltip) {
+            tooltip.classList.remove("hidden");
         }
+    }
     function hideDetailTooltip(mvpId) {
         var tooltip = document.getElementById("tooltip-" + mvpId);
         if (tooltip) {
@@ -89,6 +113,4 @@
         }
     }
 </script>
-
 {% endblock %}
-

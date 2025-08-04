@@ -15,3 +15,10 @@ def kda_total(player):
     if deaths == 0:
         return kills + assists
     return round((kills + assists) / deaths, 2)
+
+@register.filter
+def float1(value):
+    try:
+        return f"{float(value):.1f}"
+    except (ValueError, TypeError):
+        return value

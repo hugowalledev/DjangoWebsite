@@ -156,9 +156,13 @@ class Command(BaseCommand):
                         )
                         table = teamcard_inner.find('table', attrs={"data-toggle-area-content":"1"}) if teamcard_inner else None
                         table_sub = None
-                        if len(tables) == 4 :
-                            tr = table.find_all('tr')[-1]
+                        if len(tables) >= 4 :
+                            tr_tags = table.find_all('tr')
+                            tr = tr_tags[-1]
                             spans = tr.find_all('span')
+                            if not spans:
+                                tr = tr_tags[-2]
+                                spans = tr.find_all('span')
 
                             if spans:
                                 # Determine which span to use
@@ -167,6 +171,7 @@ class Command(BaseCommand):
 
                                 if area:
                                     table_sub = teamcard_inner.find('table', attrs={"data-toggle-area-content": area}) 
+                            
                         
 
 

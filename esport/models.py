@@ -151,9 +151,6 @@ class Prediction(models.Model):
     predicted_winner = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="predicted_match_wins")
     predicted_score = models.CharField(max_length=10)
 
-    is_correct = models.BooleanField(null=True, blank=True)
-    score_correct = models.BooleanField(null=True, blank=True)
-
     timestamp = models.DateTimeField(auto_now_add=True)
 
     class Meta:
@@ -161,15 +158,27 @@ class Prediction(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.match}"
+    
+    @property
+    def reversed_score_str(self):
+        if self.predicted_score and " - " in self.predicted_score:
+            parts = self.predicted_score.split(" - ")
+            if len(parts) == 2:
+                return f"{parts[1]} - {parts[0]}"
+        return None
 
     def calculate_points(self):
         matchday = self.match.match_day
         points = 0
+
         if self.predicted_winner == self.match.winner:
             points += matchday.points_winner
-        if self.predicted_score == self.match.score_str:
+
+        if self.predicted_score == self.match.score_str or self.reversed_score_str == self.match.score_str:
             points += matchday.points_score
+
         return points
+
 
 class MVPDayVote(models.Model):
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
