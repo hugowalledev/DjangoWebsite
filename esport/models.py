@@ -27,6 +27,8 @@ class Team(models.Model):
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
     logo = models.ImageField(upload_to="teams")
+    logo_dark = models.ImageField(upload_to="teams", blank=True, null=True)
+
     def __str__(self):
         return self.name
 

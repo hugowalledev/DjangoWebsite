@@ -32,12 +32,18 @@
                         <div>
                             <img src="{{ match.blue_roster.team.logo.url }}"
                                 alt="{{ match.blue_roster.team.name }} logo"
-                                class="absolute opacity-40 blur group-hover:opacity-80 duration-500 w-10 h-10 ">
+                                class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
                             <img src="{{ match.blue_roster.team.logo.url }}"
                                 alt="{{ match.blue_roster.team.name }} logo"
-                                class="w-10 h-10 object-contain">
+                                class="w-10 h-10 object-contain block dark:hidden">
+                            <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                alt="{{ match.blue_roster.team.name }} logo_dark"
+                                class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                            <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                alt="{{ match.blue_roster.team.name }} logo_dark"
+                                class="w-10 h-10 object-contain hidden dark:block">
                         </div>
-                        <span class="text-base font-medium text-gray-100 truncate">
+                        <span class="text-base font-medium text-gray-100 group-hover:text-blue-300 duration-400 truncate">
                         {{ match.blue_roster.team.name }}
                         </span>
                     </div>
@@ -46,16 +52,22 @@
 
                     <!-- Red team -->
                     <div class="group flex items-center gap-2 min-w-0 truncate">
-                        <span class="text-base font-medium text-gray-100 truncate">
+                        <span class="text-base font-medium text-gray-100 group-hover:text-red-300 duration-400 truncate">
                         {{ match.red_roster.team.name }}
                         </span>
                         <div>
                             <img src="{{ match.red_roster.team.logo.url }}"
                                 alt="{{ match.red_roster.team.name }} logo"
-                                class="absolute opacity-40 blur group-hover:opacity-80 object-contain duration-500 w-10 h-10 ">
+                                class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 block dark:hidden">
                             <img src="{{ match.red_roster.team.logo.url }}"
                                 alt="{{ match.red_roster.team.name }} logo"
-                                class="w-10 h-10 object-contain">
+                                class="w-10 h-10 object-contain block dark:hidden">
+                            <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                alt="{{ match.red_roster.team.name }} logo_dark"
+                                class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 hidden dark:block">
+                            <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                alt="{{ match.red_roster.team.name }} logo_dark"
+                                class="w-10 h-10 object-contain hidden dark:block">
                         </div>
                     </div>
                 </div>
@@ -79,7 +91,7 @@
                     </svg>
                     Predicted
                     <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                        {{ prediction.predicted_winner.name }} ({{ prediction.predicted_score }})
+                        {{ prediction.predicted_winner.team.name }} ({{ prediction.predicted_score }})
                     </span>
                     </span>
                 </div>
@@ -164,17 +176,28 @@
             <ul class="space-y-4">
                 {% for match in matches %}
                     <li class="rounded-2xl shadow bg-slate-700 overflow-hidden">
-                        <a href="{% url 'esport:match_detail' match.id %}" class="block hover:bg-slate-600 transition p-4 grid grid-cols-3 items-center">
+                        <a href="{% url 'esport:match_detail' match.id %}" class="block p-4 grid grid-cols-3 items-center">
                             <!-- Blue Team (gauche) -->
-                            <div class="flex items-center gap-2 justify-start w-full">
+                            <div class="group flex items-center gap-2 justify-start w-full">
                                 <span class="flex items-center gap-2 px-2 py-1 rounded-lg
                                     {% if match.winner and match.winner == match.blue_roster %}
                                         bg-gradient-to-r from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
                                     {% endif %}
                                 ">
-                                    <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo"
-                                        class="w-10 h-10 rounded-full object-contain p-1 shrink-0 bg-slate-600 
-                                            {% if match.winner and match.winner == match.blue_roster %}ring-2 ring-green-500 dark:ring-emerald-600 bg-green-200 dark:bg-emerald-400{% endif %}">
+                                    <div>
+                                        <img src="{{ match.blue_roster.team.logo.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                        <img src="{{ match.blue_roster.team.logo.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo"
+                                            class="w-10 h-10 object-contain block dark:hidden">
+                                        <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo_dark"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                        <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo_dark"
+                                            class="w-10 h-10 object-contain hidden dark:block">
+                                    </div>
                                     <span class="text-lg font-semibold
                                         {% if match.winner and match.winner == match.blue_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
                                         {{ match.blue_roster.team.name }}
@@ -192,7 +215,7 @@
                             </div>
 
                             <!-- Red Team (droite) -->
-                            <div class="flex items-center gap-2 justify-end w-full text-right">
+                            <div class="group flex items-center gap-2 justify-end w-full text-right">
                                 <span class="flex items-center gap-2 px-2 py-1 rounded-lg
                                     {% if match.winner and match.winner == match.red_roster %}
                                         bg-gradient-to-l from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
@@ -202,9 +225,20 @@
                                         {% if match.winner and match.winner == match.red_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
                                         {{ match.red_roster.team.name }}
                                     </span>
-                                    <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo"
-                                        class="w-10 h-10 rounded-full object-contain p-1 shrink-0 bg-slate-600
-                                            {% if match.winner and match.winner == match.red_roster %}ring-2 ring-green-500 dark:ring-emerald-600 bg-green-200 dark:bg-emerald-400{% endif %}">
+                                    <div>
+                                        <img src="{{ match.red_roster.team.logo.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                        <img src="{{ match.red_roster.team.logo.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo"
+                                            class="w-10 h-10 object-contain block dark:hidden">
+                                        <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo_dark"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                        <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo_dark"
+                                            class="w-10 h-10 object-contain hidden dark:block">
+                                    </div>
                                 </span>
                             </div>
                         </a>
@@ -272,4 +306,6 @@
         }
     }
 </script>
+
+
 {% endblock %}

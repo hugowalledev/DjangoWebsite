@@ -44,6 +44,34 @@ def parse_player_table(table, is_starter, already_seen):
         already_seen.add(nickname)
     return players
 
+def save_team_logo(self, team, team_name, url, dark):
+    if dark:
+        filename = f"{slugify(team_name)}_dark.png"
+    else:
+        filename = f"{slugify(team_name)}.png"
+    upload_dir = team.logo.field.upload_to  
+    full_path = os.path.join(settings.MEDIA_ROOT, upload_dir, filename)
+
+    # Delete the existing file on disk if it exists (not just from the model)
+    try:
+        if os.path.exists(full_path):
+            os.remove(full_path)
+    except Exception as e:
+        self.stdout.write(self.style.WARNING(f"Error deleting {full_path}: {e}"))
+
+    # Now save the new logo
+    response = requests.get(url)
+    if response.status_code == 200:
+        if dark:
+            team.logo_dark.save(filename, ContentFile(response.content), save=True)
+            self.stdout.write(self.style.NOTICE(f"[DEBUG] New logo saved: {team.logo_dark.name}"))
+        else:
+            team.logo.save(filename, ContentFile(response.content), save=True)
+            self.stdout.write(self.style.NOTICE(f"[DEBUG] New logo saved: {team.logo.name}"))
+        
+    else:
+        self.stdout.write(self.style.NOTICE(f"[DEBUG] Could not fetch logo: {url}"))
+
 class Command(BaseCommand):
     help = "Imports Teams and Players from tournaments from Liquipedia and saves them"
     def handle(self, *args, **options):
@@ -119,8 +147,9 @@ class Command(BaseCommand):
                             self.stdout.write(self.style.WARNING(f"TeamCard not found for {team_name}"))
                             continue
                         tables = teamcard_inner.find_all('table')
-                        team_logo = tables[-1].find('img')
-                        team_logo_url = f"https://liquipedia.net{team_logo['src']}"
+                        team_logos = tables[-1].find_all('img')
+                        team_logo_url = f"https://liquipedia.net{team_logos[0]['src']}"
+                        team_logo_dark_url = f"https://liquipedia.net{team_logos[1]['src']}"
                         
                         try:
                             obj_team, created_team = Team.objects.get_or_create(
@@ -130,25 +159,10 @@ class Command(BaseCommand):
                         except Exception as e:
                             self.stdout.write(self.style.WARNING(f"DB error for team {team_name}: {e}"))
                             continue
-
-                        filename = f"{slugify(team_name)}.png"
-                        upload_dir = obj_team.logo.field.upload_to  
-                        full_path = os.path.join(settings.MEDIA_ROOT, upload_dir, filename)
-
-                        # Delete the existing file on disk if it exists (not just from the model)
-                        try:
-                            if os.path.exists(full_path):
-                                os.remove(full_path)
-                        except Exception as e:
-                            self.stdout.write(self.style.WARNING(f"Error deleting {full_path}: {e}"))
-
-                        # Now save the new logo
-                        response = requests.get(team_logo_url)
-                        if response.status_code == 200:
-                            obj_team.logo.save(filename, ContentFile(response.content), save=True)
-                            self.stdout.write(self.style.NOTICE(f"[DEBUG] New logo saved: {obj_team.logo.name}"))
-                        else:
-                            self.stdout.write(self.style.NOTICE(f"[DEBUG] Could not fetch logo: {team_logo_url}"))
+                        
+                        save_team_logo(self, obj_team, team_name, team_logo_url, False)
+                        save_team_logo(self, obj_team, team_name, team_logo_dark_url, True)
+                        
                         obj_roster, created_roster = Roster.objects.get_or_create(
                             team = obj_team,
                             tournament = tournament,

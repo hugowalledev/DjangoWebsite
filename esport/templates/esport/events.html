@@ -20,14 +20,19 @@
                         {% if tournament.logo and tournament.logo_dark %}
                             <!-- Light mode logo -->
                             <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
-                                class="w-12 h-12 rounded-full object-contain bg-slate-700 p-1 shrink-0 block dark:hidden">
-                            
+                                class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12 block dark:hidden">
+                            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                                class="w-12 h-12 object-contain shrink-0 block dark:hidden">
                             <!-- Dark mode logo -->
                             <img src="{{ tournament.logo_dark.url }}" alt="{{ tournament.name }}"
-                                class="w-12 h-12 rounded-full object-contain bg-slate-700 p-1 shrink-0 hidden dark:block">
-                        {% elif tournament.logo%}
+                                class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12 hidden dark:block">
+                            <img src="{{ tournament.logo_dark.url }}" alt="{{ tournament.name }}"
+                                class="w-12 h-12 object-contain shrink-0 hidden dark:block">
+                        {% elif tournament.logo %}
                             <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
-                                class="w-12 h-12 rounded-full object-contain bg-slate-700 p-1 shrink-0">
+                                class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12">
+                            <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                                class="w-12 h-12 object-contain shrink-0">
                         {% endif %}
 
                         <a href="{% url 'esport:matchlist' tournament.slug %}"
@@ -63,13 +68,19 @@
                                 {% if tournament.logo and tournament.logo_dark %}
                                     <!-- Light mode logo -->
                                     <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
-                                        class="w-12 h-12 rounded-full object-contain bg-slate-500 p-1 shrink-0 block dark:hidden">
+                                        class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12 block dark:hidden">
+                                    <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                                        class="w-12 h-12 object-contain shrink-0 block dark:hidden">
                                     <!-- Dark mode logo -->
                                     <img src="{{ tournament.logo_dark.url }}" alt="{{ tournament.name }}"
-                                        class="w-12 h-12 rounded-full object-contain bg-slate-600 p-1 shrink-0 hidden dark:block">
+                                        class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12 hidden dark:block">
+                                    <img src="{{ tournament.logo_dark.url }}" alt="{{ tournament.name }}"
+                                        class="w-12 h-12 object-contain shrink-0 hidden dark:block">
                                 {% elif tournament.logo %}
                                     <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
-                                        class="w-12 h-12 rounded-full object-contain bg-slate-600 p-1 shrink-0">
+                                        class="absolute opacity-20 blur hover:opacity-80 object-contain duration-400 w-12 h-12">
+                                    <img src="{{ tournament.logo.url }}" alt="{{ tournament.name }}"
+                                        class="w-12 h-12 object-contain shrink-0">
                                 {% endif %}
                                 <a href="{% url 'esport:matchlist' tournament.slug %}"
                                     class="font-medium text-blue-300 dark:text-blue-200 hover:text-blue-200 dark:hover:text-blue-100 transition-colors">
