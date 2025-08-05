@@ -13,14 +13,16 @@
         <div class="flex justify-between items-center h-full">
             <!-- Blue Team -->
             <div class="flex items-center space-x-2 max-w-[45%] truncate">
-            <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo" class="w-16 rounded-full object-contain shrink-0 ">
-            <span class="truncate">{{ match.blue_roster.team.name }}</span>
+                <img src="{{ match.blue_roster.team.logo.url }}" alt="{{ match.blue_roster.team.name }} logo" class="w-16 rounded-full object-contain shrink-0 ">
+                <span class="truncate">
+                    <a href="{% url 'esport:roster_detail' match.blue_roster.id %}">{{ match.blue_roster.team.name }}</a>
+                </span>
             </div>
 
             <!-- Red Team -->
             <div class="flex items-center space-x-2 max-w-[45%] truncate justify-end">
-            <span class="truncate">{{ match.red_roster.team.name }}</span>
-            <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo" class="w-16 rounded-full object-contain shrink-0 ">
+                <span class="truncate">{{ match.red_roster.team.name }}</span>
+                <img src="{{ match.red_roster.team.logo.url }}" alt="{{ match.red_roster.team.name }} logo" class="w-16 rounded-full object-contain shrink-0 ">
             </div>
         </div>
     </div>

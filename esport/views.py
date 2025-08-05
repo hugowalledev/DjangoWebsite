@@ -10,6 +10,7 @@ from django.forms import formset_factory
 from django.urls import reverse
 from django.utils import timezone
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.utils.decorators import method_decorator
 from .utils import get_possible_scores 
 
@@ -398,3 +399,32 @@ def tournament_scoreboard(request, slug):
         'scoreboard_rows': scoreboard_rows,
     }
     return render(request, 'esport/tournament_scoreboard.html', context)
+
+def roster_detail(request, id):
+    roster = get_object_or_404(Roster, id=id)
+
+    futur_matches = Match.objects.filter(
+        Q(blue_roster=roster) | Q(red_roster=roster),
+        match_day__tournament=tournament,
+        is_closed=False,
+    )
+    past_matches = Match.objects.filter(
+        Q(blue_roster=roster) | Q(red_roster=roster),
+        match_day__tournament=tournament,
+        is_closed=True,
+    )
+    matches_by_day = defaultdict(list)
+    for match in past_matches:
+        day = match.scheduled_time.date()
+        matches_by_day[day].append(match)
+    team = roster.team
+    precedent_rosters = Roster.objects.filter(team=team)
+
+    context = {
+        'roster': roster,
+        'futur_matches': futur_matches,
+        'past_matches': past_matches,
+        'matches_by_day': sorted(matches_by_day.items(), reverse=True),
+        'precedent_rosters': precedent_rosters,
+    }
+    return render(request, 'esport/roster_detail.html', context)

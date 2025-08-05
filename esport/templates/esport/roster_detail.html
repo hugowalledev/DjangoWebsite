@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+{% load custom_filters %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto p-4">
+    <div class="flex ">
+        <h1 class="text-slate-300">{{roster.team.name}}</h1>
+    </div>
+
+    <div class="flex flex-col">
+        <div class="flex flex-row items-center">
+            <button>
+            <button>
+        </div>
+        <div class="flex flex-col">
+            <ul class="space-y-4">
+                {% for match in futur_matches %}
+                    <li class="bg-slate-700 dark:bg-slate-800 rounded-2xl shadow p-4 hover:bg-slate-600 dark:hover:bg-slate-700 transition">
+                        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            
+                            <!-- Team Names + Logos -->
+                            <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap flex-1 min-w-0">
+                                <!-- Blue team -->
+                                <div class="group flex items-center gap-2 min-w-0 truncate">
+                                    <div>
+                                        <img src="{{ match.blue_roster.team.logo.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                        <img src="{{ match.blue_roster.team.logo.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo"
+                                            class="w-10 h-10 object-contain block dark:hidden">
+                                        <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo_dark"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                        <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                            alt="{{ match.blue_roster.team.name }} logo_dark"
+                                            class="w-10 h-10 object-contain hidden dark:block">
+                                    </div>
+                                    <span class="text-base font-medium text-gray-100 group-hover:text-blue-300 duration-400 truncate">
+                                    {{ match.blue_roster.team.name }}
+                                    </span>
+                                </div>
+                                <!-- VS -->
+                                <span class="text-sm text-slate-400 dark:text-slate-300 font-semibold">vs</span>
+
+                                <!-- Red team -->
+                                <div class="group flex items-center gap-2 min-w-0 truncate">
+                                    <span class="text-base font-medium text-gray-100 group-hover:text-red-300 duration-400 truncate">
+                                    {{ match.red_roster.team.name }}
+                                    </span>
+                                    <div>
+                                        <img src="{{ match.red_roster.team.logo.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 block dark:hidden">
+                                        <img src="{{ match.red_roster.team.logo.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo"
+                                            class="w-10 h-10 object-contain block dark:hidden">
+                                        <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo_dark"
+                                            class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 hidden dark:block">
+                                        <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                            alt="{{ match.red_roster.team.name }} logo_dark"
+                                            class="w-10 h-10 object-contain hidden dark:block">
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- Timer -->
+                            <div class="flex flex-col items-end text-sm min-w-max">
+                                <span class="scheduled-time text-gray-400 dark:text-gray-300" data-utc="{{ match.scheduled_time|date:'c' }}"></span>
+                                <span class="font-mono text-blue-400 text-base countdown" data-time="{{ match.scheduled_time|date:'U' }}"></span>
+                            </div>
+
+                        </div>
+                    </li>
+                {% endfor %}
+            </ul>
+
+            <h2 class="text-xl font-bold text-slate-700 dark:text-slate-400 mb-4 text-center">Matches played</h2>
+            {% if matches_by_day %}
+                {% for day, matches in matches_by_day %}
+                    <h3 class="text-lg font-semibold text-slate-600 dark:text-slate-300 mt-6 mb-2 text-center">
+                        {{ day|date:"l d F Y" }}
+                    </h3>
+                    <ul class="space-y-4">
+                        {% for match in matches %}
+                            <li class="rounded-2xl shadow bg-slate-700 overflow-hidden">
+                                <a href="{% url 'esport:match_detail' match.id %}" class="block p-4 grid grid-cols-3 items-center">
+                                    <!-- Blue Team (gauche) -->
+                                    <div class="group flex items-center gap-2 justify-start w-full">
+                                        <span class="flex items-center gap-2 px-2 py-1 rounded-lg
+                                            {% if match.winner and match.winner == match.blue_roster %}
+                                                bg-gradient-to-r from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
+                                            {% endif %}
+                                        ">
+                                            <div>
+                                                <img src="{{ match.blue_roster.team.logo.url }}"
+                                                    alt="{{ match.blue_roster.team.name }} logo"
+                                                    class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                                <img src="{{ match.blue_roster.team.logo.url }}"
+                                                    alt="{{ match.blue_roster.team.name }} logo"
+                                                    class="w-10 h-10 object-contain block dark:hidden">
+                                                <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                                    alt="{{ match.blue_roster.team.name }} logo_dark"
+                                                    class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                                <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                                    alt="{{ match.blue_roster.team.name }} logo_dark"
+                                                    class="w-10 h-10 object-contain hidden dark:block">
+                                            </div>
+                                            <span class="text-lg font-semibold
+                                                {% if match.winner and match.winner == match.blue_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
+                                                {{ match.blue_roster.team.name }}
+                                            </span>
+                                        </span>
+                                    </div>
+
+                                    <!-- Score (centre) -->
+                                    <div class="flex flex-col items-center justify-center min-h-[36px] min-w-[70px]">
+                                        {% if match.score_str %}
+                                            <span class="text-2xl font-bold text-blue-700 dark:text-emerald-500">{{ match.score_str }}</span>
+                                        {% else %}
+                                            <span class="invisible text-2xl font-bold">0 - 0</span>
+                                        {% endif %}
+                                    </div>
+
+                                    <!-- Red Team (droite) -->
+                                    <div class="group flex items-center gap-2 justify-end w-full text-right">
+                                        <span class="flex items-center gap-2 px-2 py-1 rounded-lg
+                                            {% if match.winner and match.winner == match.red_roster %}
+                                                bg-gradient-to-l from-green-200 to-green-50 dark:from-emerald-400 dark:to-slate-700
+                                            {% endif %}
+                                        ">
+                                            <span class="text-lg font-semibold
+                                                {% if match.winner and match.winner == match.red_roster %}text-green-700 dark:text-emerald-300{% else %}text-gray-200{% endif %}">
+                                                {{ match.red_roster.team.name }}
+                                            </span>
+                                            <div>
+                                                <img src="{{ match.red_roster.team.logo.url }}"
+                                                    alt="{{ match.red_roster.team.name }} logo"
+                                                    class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                                <img src="{{ match.red_roster.team.logo.url }}"
+                                                    alt="{{ match.red_roster.team.name }} logo"
+                                                    class="w-10 h-10 object-contain block dark:hidden">
+                                                <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                                    alt="{{ match.red_roster.team.name }} logo_dark"
+                                                    class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                                <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                                    alt="{{ match.red_roster.team.name }} logo_dark"
+                                                    class="w-10 h-10 object-contain hidden dark:block">
+                                            </div>
+                                        </span>
+                                    </div>
+                                </a>
+                            </li>
+                        {% endfor %}
+                    </ul>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+</div>
+
+
+<script>
+    // Local time conversion for match start
+    document.addEventListener("DOMContentLoaded", function() {
+        // Convert UTC times to local browser times
+        document.querySelectorAll('.scheduled-time').forEach(function(span) {
+            const utc = span.dataset.utc;
+            if (!utc) return;
+            const date = new Date(utc);
+            const localString = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) +
+                ' - ' +
+                date.toLocaleDateString([], { day: '2-digit', month: '2-digit', year: 'numeric' });
+            span.textContent = "Débute à " + localString;
+        });
+
+        // Countdown timer
+        function updateCountdowns() {
+            const now = Math.floor(Date.now() / 1000);
+            document.querySelectorAll(".countdown").forEach(function(span) {
+                const target = parseInt(span.dataset.time);
+                let seconds = target - now;
+                if (seconds <= 0) {
+                    span.textContent = "En cours ou terminé";
+                } else {
+                    const d = Math.floor(seconds / (3600*24));
+                    const h = Math.floor((seconds % (3600*24)) / 3600);
+                    const m = Math.floor((seconds % 3600) / 60);
+                    const s = seconds % 60;
+                    let parts = [];
+                    if (d) parts.push(d + "j");
+                    if (h) parts.push(h + "h");
+                    if (m) parts.push(m + "m");
+                    parts.push(s + "s");
+                    span.textContent = "Débute dans " + parts.join(" ");
+                }
+            });
+        }
+        updateCountdowns();
+        setInterval(updateCountdowns, 1000);
+    });
+</script>
+{% endblock %}

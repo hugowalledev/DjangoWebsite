@@ -8,4 +8,5 @@ urlpatterns = [
     path("<slug:slug>/fantasy/", views.PredictionView.as_view(), name="prediction"),
     path('match/<int:match_id>/', views.match_detail, name='match_detail'),
     path('<slug:slug>/scoreboard', views.tournament_scoreboard, name ='tournament_scoreboard'),
+    path('team/<slug:roster_id>/', views.roster_detail, name='roster_detail'),
 ]
