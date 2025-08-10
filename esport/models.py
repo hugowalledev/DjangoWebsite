@@ -6,7 +6,9 @@ from django.utils import timezone
 
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
-    region = models.CharField(max_length=255)
+    league = models.CharField(max_length=255, blank=True, null=True)
+    split = models.CharField(max_length=255, blank=True, null=True)
+    year = models.PositiveIntegerField(blank=True, null=True)
     date_started = models.DateField("date started")
     date_ended = models.DateField("date ended")
     logo = models.ImageField(upload_to="tournaments", blank=True, null=True)
@@ -28,6 +30,7 @@ class Team(models.Model):
     region = models.CharField(max_length=255)
     logo = models.ImageField(upload_to="teams")
     logo_dark = models.ImageField(upload_to="teams", blank=True, null=True)
+    slug = models.SlugField(unique=True, blank=True, null=True)
 
     def __str__(self):
         return self.name
@@ -35,8 +38,9 @@ class Team(models.Model):
 class Player(models.Model):
     name = models.CharField(max_length=255)
     fullname = models.CharField(max_length=255, blank=True)
-    photo = models.ImageField(upload_to="players")
+    photo = models.ImageField(upload_to="players", blank=True, null=True)
     country = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True, blank=True, null=True)
     def __str__(self):
         return f"{self.name}"
 

@@ -89,8 +89,11 @@ class TournamentListView(generic.TemplateView):
 
         return context
 
-def matchlist(request, slug):
-    tournament = get_object_or_404(Tournament, slug=slug)
+def matchlist(request, tournament_league, tournament_year, tournament_split=None):
+    if tournament_split != None:
+        tournament = get_object_or_404(Tournament, league=tournament_league, year=tournament_year, split=tournament_split)
+    else:
+        tournament = get_object_or_404(Tournament, league=tournament_league, year=tournament_year)
     now = timezone.now()
     upcoming_matches = Match.objects.filter(
         match_day__tournament=tournament,
@@ -281,7 +284,7 @@ class PredictionView(LoginRequiredMixin, View):
                         prediction.save()
 
         messages.success(request, "Your pronostics have been saved!")
-        return redirect("esport:matchlist", slug=tournament.slug)
+        return redirect("esport:matchlist", tournament_league=tournament.league, tournament_year=tournament.year, tournament_split=tournament.split)
 
 from django.shortcuts import render, get_object_or_404
 from esport.models import Match, Game, PlayerStats, RosterPlayer
@@ -400,25 +403,32 @@ def tournament_scoreboard(request, slug):
     }
     return render(request, 'esport/tournament_scoreboard.html', context)
 
-def roster_detail(request, id):
-    roster = get_object_or_404(Roster, id=id)
+def roster_detail(request, team_slug, year, tournament_league, tournament_split):
+    now = timezone.now()
+    roster = get_object_or_404(Roster.objects.select_related("team", "tournament"),
+        team__slug=team_slug,
+        tournament__year=year,
+        tournament__league=tournament_league,
+        tournament__split=tournament_split,
+    )
 
     futur_matches = Match.objects.filter(
         Q(blue_roster=roster) | Q(red_roster=roster),
-        match_day__tournament=tournament,
+        match_day__tournament=roster.tournament,
+        scheduled_time__gte=now,
         is_closed=False,
-    )
+    ).order_by('scheduled_time')
+
     past_matches = Match.objects.filter(
         Q(blue_roster=roster) | Q(red_roster=roster),
-        match_day__tournament=tournament,
+        match_day__tournament=roster.tournament,
         is_closed=True,
-    )
+    ).order_by('-scheduled_time')
     matches_by_day = defaultdict(list)
     for match in past_matches:
         day = match.scheduled_time.date()
         matches_by_day[day].append(match)
-    team = roster.team
-    precedent_rosters = Roster.objects.filter(team=team)
+    precedent_rosters = Roster.objects.filter(team=roster.team).exclude(tournament=roster.tournament)
 
     context = {
         'roster': roster,

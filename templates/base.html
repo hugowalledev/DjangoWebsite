@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 {% load static tailwind_tags %}
+{% load socialaccount %}
 
 
 <html lang="en">
@@ -19,64 +20,97 @@
 <body class="bg-gray-200 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
 
     <!-- Header -->
-    <header class="flex justify-end items-center p-4 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white shadow">
-        {% if user.is_authenticated %}
-            <span class="mr-2"> {{ user.username }} </span>
-            <a href="{% url 'account_logout' %}" class="hover:underline">(Log out)</a>
-        {% else %}
-            <button onclick="openLoginPopup()" class="hover:underline">Log in</button>
-            <span class="mx-1">/</span>
-            <button onclick="openRegisterPopup()" class="hover:underline">Sign in</button>
-        {% endif %}
+    <header class="flex justify-between items-center p-4 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white shadow">
+        <div class="flex justify-start">
+            <a href="/esport/">Accueil</a>
+        </div>
+        <div class="flex justify-end">
+            {% if user.is_authenticated %}
+                <span class="mr-2"> {{ user.username }} </span>
+                <a href="{% url 'account_logout' %}" class="hover:underline">(Log out)</a>
+            {% else %}
+                <button onclick=openAuthPopup("login") class="hover:underline">Log in</button>
+                <span class="mx-1">/</span>
+                <button onclick=openAuthPopup("signup") class="hover:underline">Sign in</button>
+            {% endif %}
+        </div>
     </header>
 
-    <!-- Login Popup -->
-    <div id="loginPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div class="bg-white dark:bg-slate-800 dark:text-slate-100 p-4 rounded shadow w-80 relative">
-            <button onclick="closePopup('loginPopup')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">&times;</button>
-            <h2 class="text-lg font-semibold mb-2">Logging in</h2>
-            <form method="POST" action="{% url 'account_login' %}">
+    <!-- Generic Popup Component -->
+    <div id="authPopup" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
+        <div class="bg-white dark:bg-slate-800 dark:text-slate-100 p-6 rounded-xl shadow-xl w-full max-w-sm relative">
+            <!-- Close Button -->
+            <button onclick="closePopup('authPopup')" 
+                    class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">
+            &times;
+            </button>
+
+            <!-- Title -->
+            <h2 id="popupTitle" class="text-xl font-semibold mb-4">Login</h2>
+
+            <!-- Google Login -->
+            <a href="{% provider_login_url 'google' %}" 
+            class="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 font-medium py-2 rounded-md hover:bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:hover:bg-slate-600 transition">
+            <img src="/static/images/google-icon.svg" alt="Google" class="w-5 h-5">
+            Continue with Google
+            </a>
+
+            <!-- Divider -->
+            <div class="flex items-center my-4">
+                <div class="flex-grow border-t border-gray-300 dark:border-slate-600"></div>
+                <span class="mx-3 text-gray-400 dark:text-gray-500 text-sm">or</span>
+                <div class="flex-grow border-t border-gray-300 dark:border-slate-600"></div>
+            </div>
+
+            <!-- Email Form -->
+            <form method="POST" id="authForm" action="{% url 'account_login' %}">
                 {% csrf_token %}
                 {{ login_form.as_p }}
                 <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
-                    Log in
+                    Continue
                 </button>
             </form>
         </div>
     </div>
-
-    <!-- Register Popup -->
-    <div id="registerPopup" class="hidden fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-        <div class="bg-white dark:bg-slate-800 dark:text-slate-100 p-4 rounded shadow w-80 relative">
-            <button onclick="closePopup('registerPopup')" class="absolute top-2 right-2 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">&times;</button>
-            <h2 class="text-lg font-semibold mb-2">Signing in</h2>
-            <form method="POST" action="{% url 'account_signup' %}">
-                {% csrf_token %}
-                {{ signup_form.as_p }}
-                <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
-                    Sign in
-                </button>
-            </form>
-        </div>
-    </div>
-
     <!-- Main Content -->
     <main class="py-6 px-4">
         {% block content %}
         {% endblock %}
     </main>
 
-    <!-- Popup logic -->
     <script>
-    function openLoginPopup() {
-        document.getElementById("loginPopup").classList.remove("hidden");
-    }
-    function openRegisterPopup() {
-        document.getElementById("registerPopup").classList.remove("hidden");
-    }
-    function closePopup(popupId) {
-        document.getElementById(popupId).classList.add("hidden");
-    }
+        function openLoginPopup() {
+            document.getElementById("loginPopup").classList.remove("hidden");
+        }
+        function openRegisterPopup() {
+            document.getElementById("registerPopup").classList.remove("hidden");
+        }
+        function closePopup(popupId) {
+            document.getElementById(popupId).classList.add("hidden");
+        }
+        function openAuthPopup(type) {
+            document.getElementById("authPopup").classList.remove("hidden");
+            const form = document.getElementById("authForm");
+            const title = document.getElementById("popupTitle");
+
+            if (type === "login") {
+                title.textContent = "Login";
+                form.action = "{% url 'account_login' %}";
+                form.innerHTML = `{% csrf_token %}
+                    {{ login_form.as_p|escapejs }}
+                    <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
+                        Continue
+                    </button>`;
+            } else {
+                title.textContent = "Sign up";
+                form.action = "{% url 'account_signup' %}";
+                form.innerHTML = `{% csrf_token %}
+                    {{ signup_form.as_p|escapejs }}
+                    <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
+                        Sign Up
+                    </button>`;
+            }
+        }
     </script>
 
 </body>

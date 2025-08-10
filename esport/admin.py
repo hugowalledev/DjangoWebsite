@@ -122,17 +122,12 @@ class MatchDayInline(admin.StackedInline):
 
 @admin.register(Tournament)
 class TournamentAdmin(admin.ModelAdmin):
-    list_display = ("name", "date_started", "date_ended", "matchlist_link")
+    list_display = ("name", "date_started", "date_ended")
     search_fields = ("name",)
     ordering = ("-date_started",)
     inlines = [MatchDayInline]
     list_display_links = ("name",)
     date_hierarchy = "date_started"
-
-    def matchlist_link(self, obj):
-        url = reverse('esport:matchlist', args=[obj.slug])
-        return format_html('<a href="{}" target="_blank">Voir les matchs à venir</a>', url)
-    matchlist_link.short_description = "Matchs à venir"
 
 @admin.register(Champion)
 class ChampionAdmin(admin.ModelAdmin):

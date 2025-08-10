@@ -10,16 +10,20 @@ from django.core.files.base import ContentFile
 from django.utils.text import slugify
 from esport.models import Player, Roster, RosterPlayer, Team, Tournament
 
-def get_region(link, headers):
+def get_team_region_and_slug(link, headers):
     res = requests.get(link, headers=headers)
     soup = BeautifulSoup(res.text, 'html.parser')
 
     div = soup.find(text="Region:")
     if not div:
         div = soup.find(text="Location:")
-    if not div:
-        return "Unknown"
-    return div.findNext('a')['title']
+    slug = soup.find(text="Abbreviation:")
+    if not slug:
+        if not div:
+            return "Unknown", None
+        else:
+            return div.findNext('a')['title'], None
+    return div.findNext('a')['title'], slugify(slug.findNext('div').get_text(strip=True))
 
 def parse_player_table(table, is_starter, already_seen):
     """Parses a player table (starters or subs) and returns player data."""
@@ -88,7 +92,7 @@ class Command(BaseCommand):
                 return
 
             soup = BeautifulSoup(res.text, 'html.parser')
-            year = tournament.date_started.year
+            year = tournament.year
             self.stdout.write(self.style.NOTICE(
                                     f"Tournament: {tournament.name}"
                                 ))
@@ -137,10 +141,12 @@ class Command(BaseCommand):
 
                         team_name = team_link_tag.text.strip()
                         team_link = f"https://liquipedia.net{team_link_tag['href']}"
-                        team_region = get_region(team_link, headers)
+                        team_region, team_slug = get_team_region_and_slug(team_link, headers)
                         if not team_region or team_region == "Unknown":
                             self.stdout.write(self.style.WARNING(f"Team region not found"))
                             continue
+                        if not team_slug:
+                            team_slug = slugify(team_name)
 
                         teamcard_inner = card.find('div', class_='teamcard-inner')
                         if not teamcard_inner:
@@ -152,9 +158,9 @@ class Command(BaseCommand):
                         team_logo_dark_url = f"https://liquipedia.net{team_logos[1]['src']}"
                         
                         try:
-                            obj_team, created_team = Team.objects.get_or_create(
+                            obj_team, created_team = Team.objects.update_or_create(
                                 name=team_name,
-                                defaults={'region': team_region},
+                                defaults={'region': team_region,'slug': team_slug},
                             )
                         except Exception as e:
                             self.stdout.write(self.style.WARNING(f"DB error for team {team_name}: {e}"))
@@ -207,7 +213,7 @@ class Command(BaseCommand):
                             player = player_map.get(nickname)  
                             rp_key = (nickname, obj_roster.id)      
                             if not player:
-                                    player = Player.objects.create(name=nickname, country=nationality)
+                                    player, created_player = Player.objects.update_or_create(name=nickname, country=nationality, slug=slugify(nickname))
                                     player_map[nickname] = player
                             if rp_key in rosterplayer_map:
                                 obj_rosterplayer = rosterplayer_map[rp_key]

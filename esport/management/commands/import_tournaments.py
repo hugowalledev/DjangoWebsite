@@ -106,12 +106,20 @@ def fetch_and_save_logo(obj, image_url, field_name, tournament_name, style, debu
         print(style.NOTICE(f"[DEBUG] {debug_label} logo saved: {field.name}"))
     else:
         print(style.NOTICE(f"[DEBUG] Could not fetch {debug_label} logo: {image_url}"))
+def get_tournament_league(link, headers):
+    res = requests.get(link, headers)
+    soup = BeautifulSoup(res.text, 'html.parser')
+    div = soup.find(text="Series:")
+    if not div:
+        return None
+    return div.findNext('div').get_text(strip=True)
 
 class Command(BaseCommand):
     help = "Imports S-Tier tournaments from Liquipedia and saves to Tournament model."
     def handle(self, *args, **options):
         url = "https://liquipedia.net/leagueoflegends/S-Tier_Tournaments"
-        res = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'})
+        headers={'User-Agent': 'Mozilla/5.0'}
+        res = requests.get(url, headers)
         soup = BeautifulSoup(res.text, 'html.parser')
         grid_tables = soup.select("div.gridTable")
         count = 0
@@ -132,12 +140,15 @@ class Command(BaseCommand):
                 liquipedia_url = "https://liquipedia.net" + tournament_link.get("href", "")
                 date_str = cells[1].get_text(strip=True)
                 start_date, end_date = parse_liquipedia_dates(date_str)
-                
-                obj, created = Tournament.objects.get_or_create(
+                tournament_league = get_tournament_league(liquipedia_url, headers)
+                tournament_split = tournament_name.replace(str(start_date.year),"").replace(tournament_league,"").strip().replace(" ","_")
+                obj, created = Tournament.objects.update_or_create(
                     slug=tournament_slug,
                     defaults={
                         'name': tournament_name,
-                        'region': '',
+                        'league': tournament_league,
+                        'year': start_date.year,
+                        'split': tournament_split,
                         'date_started': start_date,
                         'date_ended': end_date,
                         'liquipedia_url': liquipedia_url,

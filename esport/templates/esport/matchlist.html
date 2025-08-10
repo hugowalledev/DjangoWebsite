@@ -23,80 +23,80 @@
     <ul class="space-y-4">
         {% for match in upcoming_matches %}
             <li class="bg-slate-700 dark:bg-slate-800 rounded-2xl shadow p-4 hover:bg-slate-600 dark:hover:bg-slate-700 transition">
-            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                
-                <!-- Team Names + Logos -->
-                <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap flex-1 min-w-0">
-                    <!-- Blue team -->
-                    <div class="group flex items-center gap-2 min-w-0 truncate">
-                        <div>
-                            <img src="{{ match.blue_roster.team.logo.url }}"
-                                alt="{{ match.blue_roster.team.name }} logo"
-                                class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
-                            <img src="{{ match.blue_roster.team.logo.url }}"
-                                alt="{{ match.blue_roster.team.name }} logo"
-                                class="w-10 h-10 object-contain block dark:hidden">
-                            <img src="{{ match.blue_roster.team.logo_dark.url }}"
-                                alt="{{ match.blue_roster.team.name }} logo_dark"
-                                class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
-                            <img src="{{ match.blue_roster.team.logo_dark.url }}"
-                                alt="{{ match.blue_roster.team.name }} logo_dark"
-                                class="w-10 h-10 object-contain hidden dark:block">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                    
+                    <!-- Team Names + Logos -->
+                    <div class="flex items-center gap-4 flex-wrap sm:flex-nowrap flex-1 min-w-0">
+                        <!-- Blue team -->
+                        <div class="group flex items-center gap-2 min-w-0 truncate">
+                            <div>
+                                <img src="{{ match.blue_roster.team.logo.url }}"
+                                    alt="{{ match.blue_roster.team.name }} logo"
+                                    class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                <img src="{{ match.blue_roster.team.logo.url }}"
+                                    alt="{{ match.blue_roster.team.name }} logo"
+                                    class="w-10 h-10 object-contain block dark:hidden">
+                                <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                    alt="{{ match.blue_roster.team.name }} logo_dark"
+                                    class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                <img src="{{ match.blue_roster.team.logo_dark.url }}"
+                                    alt="{{ match.blue_roster.team.name }} logo_dark"
+                                    class="w-10 h-10 object-contain hidden dark:block">
+                            </div>
+                            <span class="text-base font-medium text-gray-100 group-hover:text-blue-300 duration-400 truncate">
+                            {{ match.blue_roster.team.name }}
+                            </span>
                         </div>
-                        <span class="text-base font-medium text-gray-100 group-hover:text-blue-300 duration-400 truncate">
-                        {{ match.blue_roster.team.name }}
+                        <!-- VS -->
+                        <span class="text-sm text-slate-400 dark:text-slate-300 font-semibold">vs</span>
+
+                        <!-- Red team -->
+                        <div class="group flex items-center gap-2 min-w-0 truncate">
+                            <span class="text-base font-medium text-gray-100 group-hover:text-red-300 duration-400 truncate">
+                            {{ match.red_roster.team.name }}
+                            </span>
+                            <div>
+                                <img src="{{ match.red_roster.team.logo.url }}"
+                                    alt="{{ match.red_roster.team.name }} logo"
+                                    class="absolute w-10 h-10 object-contain opacity-20 blur group-hover:opacity-80 duration-400 block dark:hidden">
+                                <img src="{{ match.red_roster.team.logo.url }}"
+                                    alt="{{ match.red_roster.team.name }} logo"
+                                    class="w-10 h-10 object-contain block dark:hidden">
+                                <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                    alt="{{ match.red_roster.team.name }} logo_dark"
+                                    class="absolute w-10 h-10 object-contain opacity-20 blur group-hover:opacity-80 duration-400 hidden dark:block">
+                                <img src="{{ match.red_roster.team.logo_dark.url }}"
+                                    alt="{{ match.red_roster.team.name }} logo_dark"
+                                    class="w-10 h-10 object-contain hidden dark:block">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Timer -->
+                    <div class="flex flex-col items-end text-sm min-w-max">
+                    <span class="scheduled-time text-gray-400 dark:text-gray-300" data-utc="{{ match.scheduled_time|date:'c' }}"></span>
+                    <span class="font-mono text-blue-400 text-base countdown" data-time="{{ match.scheduled_time|date:'U' }}"></span>
+                    </div>
+                </div>
+
+                <!-- Prediction badge -->
+                {% with prediction=user_predictions|get_item:match.id %}
+                    {% if user.is_authenticated and prediction %}
+                    <div class="mt-2">
+                        <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-200 text-green-800 text-xs font-medium relative cursor-pointer"
+                            onmouseenter="showDetailTooltip({{ match.id }})"
+                            onmouseleave="hideDetailTooltip({{ match.id }})">
+                        <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                        </svg>
+                        Predicted
+                        <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
+                            {{ prediction.predicted_winner.team.name }} ({{ prediction.predicted_score }})
+                        </span>
                         </span>
                     </div>
-                    <!-- VS -->
-                    <span class="text-sm text-slate-400 dark:text-slate-300 font-semibold">vs</span>
-
-                    <!-- Red team -->
-                    <div class="group flex items-center gap-2 min-w-0 truncate">
-                        <span class="text-base font-medium text-gray-100 group-hover:text-red-300 duration-400 truncate">
-                        {{ match.red_roster.team.name }}
-                        </span>
-                        <div>
-                            <img src="{{ match.red_roster.team.logo.url }}"
-                                alt="{{ match.red_roster.team.name }} logo"
-                                class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 block dark:hidden">
-                            <img src="{{ match.red_roster.team.logo.url }}"
-                                alt="{{ match.red_roster.team.name }} logo"
-                                class="w-10 h-10 object-contain block dark:hidden">
-                            <img src="{{ match.red_roster.team.logo_dark.url }}"
-                                alt="{{ match.red_roster.team.name }} logo_dark"
-                                class="absolute opacity-20 blur group-hover:opacity-80 object-contain duration-400 w-10 h-10 hidden dark:block">
-                            <img src="{{ match.red_roster.team.logo_dark.url }}"
-                                alt="{{ match.red_roster.team.name }} logo_dark"
-                                class="w-10 h-10 object-contain hidden dark:block">
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Timer -->
-                <div class="flex flex-col items-end text-sm min-w-max">
-                <span class="scheduled-time text-gray-400 dark:text-gray-300" data-utc="{{ match.scheduled_time|date:'c' }}"></span>
-                <span class="font-mono text-blue-400 text-base countdown" data-time="{{ match.scheduled_time|date:'U' }}"></span>
-                </div>
-            </div>
-
-            <!-- Prediction badge -->
-            {% with prediction=user_predictions|get_item:match.id %}
-                {% if user.is_authenticated and prediction %}
-                <div class="mt-2">
-                    <span class="inline-flex items-center px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-200 text-green-800 text-xs font-medium relative cursor-pointer"
-                        onmouseenter="showDetailTooltip({{ match.id }})"
-                        onmouseleave="hideDetailTooltip({{ match.id }})">
-                    <svg class="w-3.5 h-3.5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
-                    </svg>
-                    Predicted
-                    <span id="tooltip-{{ match.id }}" class="absolute left-1/2 -translate-x-1/2 mt-2 z-30 hidden bg-gray-800 text-white text-xs rounded-lg px-3 py-1.5 shadow-lg whitespace-nowrap">
-                        {{ prediction.predicted_winner.team.name }} ({{ prediction.predicted_score }})
-                    </span>
-                    </span>
-                </div>
-                {% endif %}
-            {% endwith %}
+                    {% endif %}
+                {% endwith %}
             </li>
         {% empty %}
             <li class="text-gray-500 dark:text-gray-400">No match incoming.</li>
@@ -187,13 +187,13 @@
                                     <div>
                                         <img src="{{ match.blue_roster.team.logo.url }}"
                                             alt="{{ match.blue_roster.team.name }} logo"
-                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                            class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
                                         <img src="{{ match.blue_roster.team.logo.url }}"
                                             alt="{{ match.blue_roster.team.name }} logo"
                                             class="w-10 h-10 object-contain block dark:hidden">
                                         <img src="{{ match.blue_roster.team.logo_dark.url }}"
                                             alt="{{ match.blue_roster.team.name }} logo_dark"
-                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                            class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
                                         <img src="{{ match.blue_roster.team.logo_dark.url }}"
                                             alt="{{ match.blue_roster.team.name }} logo_dark"
                                             class="w-10 h-10 object-contain hidden dark:block">
@@ -228,13 +228,13 @@
                                     <div>
                                         <img src="{{ match.red_roster.team.logo.url }}"
                                             alt="{{ match.red_roster.team.name }} logo"
-                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
+                                            class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 block dark:hidden">
                                         <img src="{{ match.red_roster.team.logo.url }}"
                                             alt="{{ match.red_roster.team.name }} logo"
                                             class="w-10 h-10 object-contain block dark:hidden">
                                         <img src="{{ match.red_roster.team.logo_dark.url }}"
                                             alt="{{ match.red_roster.team.name }} logo_dark"
-                                            class="absolute opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
+                                            class="absolute object-contain opacity-20 blur group-hover:opacity-80 duration-400 w-10 h-10 hidden dark:block">
                                         <img src="{{ match.red_roster.team.logo_dark.url }}"
                                             alt="{{ match.red_roster.team.name }} logo_dark"
                                             class="w-10 h-10 object-contain hidden dark:block">

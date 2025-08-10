@@ -62,6 +62,8 @@ INSTALLED_APPS = [
     'tailwind',
     'theme',
     'django_browser_reload',
+
+    'django_extensions',
 ]
 
 AUTHENTICATION_BACKENDS = [
@@ -176,15 +178,15 @@ AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings
 SITE_ID = 1
 
-ACCOUNT_LOGIN_REDIRECT_URL ="/"
-ACCOUNT_LOGOUT_REDIRECT_URL ="/"
+ACCOUNT_LOGIN_REDIRECT_URL ="/esport/"
+ACCOUNT_LOGOUT_REDIRECT_URL ="/esport/"
 ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
 ACCOUNT_EMAIL_VERIFICATION = False
 ACCOUNT_PASSWORD_MIN_LENGTH = 8
-ACCOUNT_DEFAULT_HTTP_PROTOCOL='https'
+ACCOUNT_DEFAULT_HTTP_PROTOCOL='http'
 ACCOUNT_LOGOUT_ON_GET = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
-LOGIN_REDIRECT_URL = '/'
+LOGIN_REDIRECT_URL = '/esport/'
 
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = False

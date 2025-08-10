@@ -4,9 +4,10 @@ from . import views
 app_name = "esport"
 urlpatterns = [
     path("", views.TournamentListView.as_view(), name="tournamentlist"),
-    path('<slug:slug>/', views.matchlist, name='matchlist'),
+    path('tournaments/<str:tournament_league>/<int:tournament_year>/<str:tournament_split>', views.matchlist, name='matchlist'),
+    path('tournaments/<str:tournament_league>/<int:tournament_year>', views.matchlist, name='matchlist'),
     path("<slug:slug>/fantasy/", views.PredictionView.as_view(), name="prediction"),
     path('match/<int:match_id>/', views.match_detail, name='match_detail'),
     path('<slug:slug>/scoreboard', views.tournament_scoreboard, name ='tournament_scoreboard'),
-    path('team/<slug:roster_id>/', views.roster_detail, name='roster_detail'),
+    path('teams/<str:team_slug>/<int:year>/<str:tournament_league>/<str:tournament_split>', views.roster_detail, name='roster_detail'),
 ]
