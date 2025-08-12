@@ -95,6 +95,17 @@ def matchlist(request, tournament_league, tournament_year, tournament_split=None
     else:
         tournament = get_object_or_404(Tournament, league=tournament_league, year=tournament_year)
     now = timezone.now()
+
+    tournaments_related = Tournament.objects.filter(league=tournament_league).order_by('-year', 'split')
+
+    # Group by year so we can easily display year + splits
+    tournaments_by_year = defaultdict(list)
+    for t in tournaments_related:
+        tournaments_by_year[t.year].append(t)
+
+    # Sort years descending
+    tournaments_by_year = dict(sorted(tournaments_by_year.items(), reverse=True))
+
     upcoming_matches = Match.objects.filter(
         match_day__tournament=tournament,
         scheduled_time__gte=now
@@ -126,6 +137,7 @@ def matchlist(request, tournament_league, tournament_year, tournament_split=None
 
     return render(request, 'esport/matchlist.html', {
         'tournament': tournament,
+        'tournaments_by_year': tournaments_by_year,
         'upcoming_matches': upcoming_matches,
         'past_matches': past_matches,
         'matches_by_day': sorted(matches_by_day.items(), reverse=True),

@@ -224,35 +224,37 @@ class Command(BaseCommand):
 
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
 
-        for tournament in Tournament.objects.filter(
-                date_ended__gte=datetime.today() + timedelta(days=-5),
-                date_started__lte=date.today(),
-            ).order_by('date_started'):
-
+        for tournament in Tournament.objects.filter(year=2014).order_by('date_started'):
+            
             tournament_name_quoted = quote(tournament.name)
             
             rosters = Roster.objects.filter(tournament=tournament)
             team_name_to_roster = {r.team.name: r for r in rosters}
             normalized_map = {normalize_team_name(k): v for k,v in team_name_to_roster.items()}
+            normalized_slug_map = {}
+            for r in rosters:
+                if r.team.slug:
+                    normalized_slug_map[normalize_team_name(r.team.slug)]= r
+            
+
             url = f"https://gol.gg/tournament/tournament-matchlist/{tournament_name_quoted}/"
             try:
                 res = requests.get(url, headers=headers)
                 res.raise_for_status()  # Raises HTTPError if not 2xx
             except requests.RequestException as e:
-                print(f"Request failed for {url}: {e}")
+                self.stdout.write(self.style.WARNING(f"Request failed for {url}: {e}"))
                 return  # or handle accordingly
             soup = BeautifulSoup(res.text, 'html.parser')
-
             tbody = soup.find('tbody')
             if not tbody:
-                print("[DEBUG] <tbody> not found in page!")
+                self.stdout.write(self.style.WARNING("[DEBUG] <tbody> not found in page!"))
                 continue
             rows = tbody.find_all('tr')
             for row in rows:
                 with transaction.atomic():
                     cols = row.find_all('td')
                     patch = cols[-2].get_text()
-                    if patch == "":
+                    if patch == "" and tournament.date_ended > date.today():
                         continue
                     date_str = cols[-1].get_text()
                     
@@ -263,6 +265,9 @@ class Command(BaseCommand):
                     )
 
                     match_ref = cols[0].find('a')
+                    if not match_ref:
+                        print(tournament.name)
+                        continue
                     match_url = match_ref['href'].replace("..","https://gol.gg").replace("summary/", "game/")
                     blue_team_str, red_team_str = get_teams(match_ref['href'].replace("..","https://gol.gg"), headers)
                     score_str = cols[2].get_text()
@@ -271,11 +276,15 @@ class Command(BaseCommand):
                     blue_roster = find_closest_team_roster(blue_team_str, normalized_map)
                     red_roster = find_closest_team_roster(red_team_str, normalized_map)
                     if not blue_roster:
-                        self.stdout.write(self.style.WARNING(f"Roster not found for: {blue_team_str}"))
-                        continue
+                        blue_roster = find_closest_team_roster(blue_team_str, normalized_slug_map)
+                        if not blue_roster:
+                            self.stdout.write(self.style.WARNING(f"Roster not found for: {blue_team_str}"))
+                            continue
                     if not red_roster:
-                        self.stdout.write(self.style.WARNING(f"Roster not found for:{red_team_str}"))
-                        continue
+                        red_roster = find_closest_team_roster(red_team_str, normalized_slug_map)
+                        if not red_roster:
+                            self.stdout.write(self.style.WARNING(f"Roster not found for:{red_team_str}"))
+                            continue
 
                     winner_str = normalize_team_name(row.find('td', class_="text_victory").get_text())
                     score_stack = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
@@ -319,7 +328,36 @@ class Command(BaseCommand):
                         else:
                             for i in range(number_of_games):
                                 import_game(get_game_link(match_url, headers, i), headers, match, i+1, normalized_champions, roster_player_map, summary)
+                    
+                    elif tournament.date_ended <= date.today():
+                        match_name = f"{blue_roster.team.name} VS {red_roster.team.name} ({tournament.name})"
+                        obj_match, created_match = Match.objects.get_or_create(
+                            match_day=matchday,
+                            blue_roster=blue_roster,
+                            red_roster=red_roster,
+                            defaults={
+                                'name': match_name,
+                                'scheduled_time': date_match,
+                                'scheduled_hour': time(12,0),
+                                'best_of': best_of,
+                                'score_str': score_str,
+                                'winner': winner,
+                                'is_closed': True,
+                                'winner_score': winner_score,
+                                'loser_score': loser_score,
+                            }
+                        )
+                        roster_player_map = {}
+                        number_of_games = winner_score + loser_score
+                        for rp in RosterPlayer.objects.filter(roster__in=[obj_match.blue_roster, obj_match.red_roster]):
+                            roster_player_map[rp.player.name.lower()] = rp
 
+
+                        if obj_match.best_of == 1:
+                            import_game(match_url, headers, obj_match, 1, normalized_champions, roster_player_map, summary)
+                        else:
+                            for i in range(number_of_games):
+                                import_game(get_game_link(match_url, headers, i), headers, obj_match, i+1, normalized_champions, roster_player_map, summary)
                     else:
                         print(f"[SKIP] Match does not exist {blue_team_str} VS {red_team_str} (or reversed): {date_match}, not creating new one.")
                     summary['matches_processed'] += 1
