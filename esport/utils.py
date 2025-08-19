@@ -1,5 +1,17 @@
 
+from django.core.files.storage import FileSystemStorage
 
+class OverwriteStorage(FileSystemStorage):
+    def get_available_name(self, name, max_length=None):
+        # If the name already exists, delete it first so the new file can use the same name.
+        try:
+            if self.exists(name):
+                self.delete(name)
+        except Exception:
+            # be tolerant of any delete errors
+            pass
+        return name
+        
 def get_possible_scores(match):
     bo = getattr(match, 'best_of', None)
     if bo == 1:

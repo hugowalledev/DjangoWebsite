@@ -44,7 +44,7 @@
                                         {% else %}
                                             bg-gray-200 hover:bg-gray-300
                                         {% endif %}">
-                                    {{ split_t.split }}
+                                    {{ split_t.split|underscore_to_space }}
                                 </a>
                             {% endfor %}
                         </div>

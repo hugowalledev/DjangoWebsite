@@ -29,7 +29,7 @@ def get_teams(link, headers):
         raise Exception(f"Could not find both teams on page: {url}")
     blue = normalize_team_name(divs[0].get_text(strip=True))
     red = normalize_team_name(divs[1].get_text(strip=True))
-    return blue, red
+    return blue,red
 
 def fix_champion(name):
     name = name.lower()
@@ -50,7 +50,7 @@ def normalize_team_name(name):
     name = re.sub(r"\bs?\b", "", name)   # remove stray s
     name = re.sub(r"\s+", " ", name).strip()
     # Remove prefixes like "movistar", "team", "esports", etc. (customize this)
-    name = re.sub(r"^(movistar|team|esports|gaming|club|fc|ac|the)\s+", "", name)
+    name = re.sub(r"^(movistar|team|esports|gaming|club|fc|ac|the|-)\s+", "", name)
     
     return name
 
@@ -63,7 +63,7 @@ def find_closest_team_roster(scraped_team_name, normalized_map):
 
     # Fuzzy match
     choices = list(normalized_map.keys())
-    match = difflib.get_close_matches(target_norm, choices, n=1, cutoff=0.6)
+    match = difflib.get_close_matches(target_norm, choices, n=1, cutoff=0.8)
     if match:
         return normalized_map[match[0]]
 
@@ -224,7 +224,7 @@ class Command(BaseCommand):
 
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
 
-        for tournament in Tournament.objects.filter(year=2014).order_by('date_started'):
+        for tournament in Tournament.objects.filter(year=2016).order_by('date_started'):
             
             tournament_name_quoted = quote(tournament.name)
             
@@ -278,14 +278,16 @@ class Command(BaseCommand):
                     if not blue_roster:
                         blue_roster = find_closest_team_roster(blue_team_str, normalized_slug_map)
                         if not blue_roster:
-                            self.stdout.write(self.style.WARNING(f"Roster not found for: {blue_team_str}"))
+                            self.stdout.write(self.style.WARNING(f"Roster not found for:{blue_team_str}"))
                             continue
                     if not red_roster:
                         red_roster = find_closest_team_roster(red_team_str, normalized_slug_map)
                         if not red_roster:
                             self.stdout.write(self.style.WARNING(f"Roster not found for:{red_team_str}"))
                             continue
-
+                    victory = row.find('td', class_="text_victory")
+                    if not victory:
+                        continue
                     winner_str = normalize_team_name(row.find('td', class_="text_victory").get_text())
                     score_stack = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
 

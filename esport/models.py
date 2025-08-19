@@ -1,8 +1,11 @@
+from .utils import OverwriteStorage
 from django.db import models
 from datetime import datetime, timedelta
 from django.core.exceptions import ValidationError
 from django.utils import timezone
+from django.utils.deconstruct import deconstructible
 
+overwrite_storage = OverwriteStorage()
 
 class Tournament(models.Model):
     name = models.CharField(max_length=255)
@@ -11,8 +14,8 @@ class Tournament(models.Model):
     year = models.PositiveIntegerField(blank=True, null=True)
     date_started = models.DateField("date started")
     date_ended = models.DateField("date ended")
-    logo = models.ImageField(upload_to="tournaments", blank=True, null=True)
-    logo_dark = models.ImageField(upload_to="tournaments", blank=True, null=True)
+    logo = models.ImageField(upload_to="tournaments", blank=True, null=True, storage=overwrite_storage)
+    logo_dark = models.ImageField(upload_to="tournaments", blank=True, null=True, storage=overwrite_storage)
     liquipedia_url = models.URLField(blank=True, null=True)
     slug = models.SlugField(unique=True)
 
@@ -28,8 +31,8 @@ class Tournament(models.Model):
 class Team(models.Model):
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
-    logo = models.ImageField(upload_to="teams")
-    logo_dark = models.ImageField(upload_to="teams", blank=True, null=True)
+    logo = models.ImageField(upload_to="teams", storage=overwrite_storage)
+    logo_dark = models.ImageField(upload_to="teams", blank=True, null=True, storage=overwrite_storage)
     slug = models.SlugField(unique=True, blank=True, null=True)
 
     def __str__(self):
@@ -38,7 +41,7 @@ class Team(models.Model):
 class Player(models.Model):
     name = models.CharField(max_length=255)
     fullname = models.CharField(max_length=255, blank=True)
-    photo = models.ImageField(upload_to="players", blank=True, null=True)
+    photo = models.ImageField(upload_to="players", blank=True, null=True, storage=overwrite_storage)
     country = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True, null=True)
     def __str__(self):
@@ -142,7 +145,7 @@ class PlayerStats(models.Model):
 
 class Champion(models.Model):
     name = models.CharField(max_length=50, unique=True)
-    image = models.ImageField(upload_to="champions", blank=True, null=True)
+    image = models.ImageField(upload_to="champions", blank=True, null=True, storage=overwrite_storage)
 
     def __str__(self):
         return self.name

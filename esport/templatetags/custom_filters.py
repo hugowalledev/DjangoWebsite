@@ -22,3 +22,10 @@ def float1(value):
         return f"{float(value):.1f}"
     except (ValueError, TypeError):
         return value
+
+@register.filter
+def underscore_to_space(value):
+    """Replace underscores with spaces."""
+    if isinstance(value, str):
+        return value.replace('_', ' ')
+    return value
