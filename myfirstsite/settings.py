@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
     BASE_DIR / "champions",
-    BASE_DIR / "tournament",
+    BASE_DIR / "tournaments",
     BASE_DIR / "teams",
 ]
 MEDIA_ROOT=''
