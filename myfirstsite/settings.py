@@ -24,6 +24,7 @@ STATICFILES_DIRS = [
     ("champions", BASE_DIR / "champions"),
     ("tournaments", BASE_DIR / "tournaments"),
     ("teams", BASE_DIR / "teams"),
+    ("roles", BASE_DIR / "roles"),
 ]
 MEDIA_ROOT=''
 MEDIA_URL=''
@@ -176,7 +177,7 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
-STATIC_URL = 'static/'
+STATIC_URL = "/static/"
 STATICFILES_STORAGE="whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
