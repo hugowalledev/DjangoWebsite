@@ -123,7 +123,7 @@
                     </div>
                 {% for stat in gameinfo.blue_stats %}
                     <div class="flex items-center justify-between gap-8">
-                        <img src="static/roles/{{stat.roster_player.role}}.png" class="w-8 bottom-0"/>
+                        <img src="/static/roles/{{stat.roster_player.role}}.png" class="w-8 bottom-0"/>
                         <div class="flex flex-col items-end">
                             <div class="flex items-center gap-2 truncate text-blue-700 dark:text-blue-300">
                                 {{ stat.roster_player.player.name}}
@@ -186,7 +186,7 @@
                                 <div class="text-slate-700 dark:text-slate-300">{{ stat.assists }}</div>
                             </div>
                         </div>
-                        <img src="static/roles/{{stat.roster_player.role}}.png" class="w-8"/>
+                        <img src="/static/roles/{{stat.roster_player.role}}.png" class="w-8"/>
                     </div>
                 {% endfor %}
                 </div>
