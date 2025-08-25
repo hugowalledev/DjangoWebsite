@@ -6,6 +6,21 @@ from .models import Champion, Game, MatchDay, Match, MVPDayVote, Team, Tournamen
 from .utils import get_possible_scores
 from users.models import UserProfile
 import datetime
+from django.contrib.admin import SimpleListFilter
+
+class TournamentFilter(admin.SimpleListFilter):
+    title = "Tournament"
+    parameter_name = "tournament"
+
+    def lookups(self, request, model_admin):
+        # show recent tournaments only (for performance)
+        tournaments = Tournament.objects.order_by("-date_started")[:50]
+        return [(t.id, t.name) for t in tournaments]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(game__match__tournament_id=self.value())
+        return queryset
 
 @admin.action(description="Close selected match (enter winner/scores)")
 def close_matches(modeladmin, request, queryset):
@@ -146,14 +161,16 @@ class PlayerStatsAdmin(admin.ModelAdmin):
     list_display = (
         "get_player_name", "get_team", "game", "get_match", "champion", "kills", "deaths", "assists", "get_kda"
     )
-    list_filter = ("champion", "roster_player__player", "game__match")
-    search_fields = ("roster_player__player__name", "champion__name", "game__match")
+    list_filter = ("champion",)
+    search_fields = ("roster_player__player__name", "champion__name","game__match__match_day__tournament__year")
     ordering = ("game", "roster_player")
     autocomplete_fields = ("roster_player", "game", "champion")
     list_select_related = True
     list_per_page = 50
     list_display_links = ("get_player_name", "game")
     readonly_fields = ("get_kda",)
+    raw_id_fields = ("roster_player", "game", "champion")
+    list_filter = (TournamentFilter, "champion")
 
     fieldsets = (
         (None, {
@@ -189,7 +206,7 @@ class PlayerStatsAdmin(admin.ModelAdmin):
             "roster_player__player",
             "roster_player__roster__team",
             "game",
-            "game__match",
+            "game__match__match_day__tournament",  # ✅ go through match to tournament
             "champion",
         )
 

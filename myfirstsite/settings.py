@@ -32,7 +32,7 @@ SECRET_KEY = 'django-insecure-g$kgmiaxn#ir97d8)6st7n8qpi)w+zc+a7va9%64p6he#cosbi
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["pronostiqueurs-all-star.onrender.com"]
 
 
 # Application definition
@@ -155,6 +155,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATICFILES_STORAGE="whitenoise.storage.CompressedManifestStaticFilesStorage"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.2/ref/settings/#default-auto-field
@@ -172,7 +173,7 @@ SOCIALACCOUNT_PROVIDERS = {
    }
 }
 
-DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings

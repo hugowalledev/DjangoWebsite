@@ -210,6 +210,9 @@ def import_game(link, headers, match, game_number, normalized_champions, roster_
 class Command(BaseCommand):
     help = "Import matches stats from gol.gg"
     def handle(self, *args, **options):
+        
+        session = requests.Session()
+        session.headers.update({'User-Agent': 'Mozilla/5.0'})
 
         summary = {
             'matches_processed': 0,
@@ -224,10 +227,9 @@ class Command(BaseCommand):
 
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
 
-        for tournament in Tournament.objects.filter(year=2016).order_by('date_started'):
-            
-            tournament_name_quoted = quote(tournament.name)
-            
+        for tournament in Tournament.objects.filter(year=2020).order_by('date_started'):
+
+            self.stdout.write(tournament.name)
             rosters = Roster.objects.filter(tournament=tournament)
             team_name_to_roster = {r.team.name: r for r in rosters}
             normalized_map = {normalize_team_name(k): v for k,v in team_name_to_roster.items()}
@@ -235,44 +237,45 @@ class Command(BaseCommand):
             for r in rosters:
                 if r.team.slug:
                     normalized_slug_map[normalize_team_name(r.team.slug)]= r
-            
 
-            url = f"https://gol.gg/tournament/tournament-matchlist/{tournament_name_quoted}/"
+            all_roster_players = RosterPlayer.objects.filter(roster__tournament=tournament).select_related("player", "roster")
+            global_roster_map = {rp.player.name.lower(): rp for rp in all_roster_players}
+
+            url = f"https://gol.gg/tournament/tournament-matchlist/{quote(tournament.name)}/"
             try:
-                res = requests.get(url, headers=headers)
-                res.raise_for_status()  # Raises HTTPError if not 2xx
+                soup = BeautifulSoup(session.get(url).text, 'html.parser')
             except requests.RequestException as e:
-                self.stdout.write(self.style.WARNING(f"Request failed for {url}: {e}"))
-                return  # or handle accordingly
-            soup = BeautifulSoup(res.text, 'html.parser')
+                self.stdout.write(self.style.WARNING(f"Request failed: {e}"))
+                continue
+
             tbody = soup.find('tbody')
             if not tbody:
                 self.stdout.write(self.style.WARNING("[DEBUG] <tbody> not found in page!"))
                 continue
-            rows = tbody.find_all('tr')
-            for row in rows:
+
+            for row in tbody.find_all('tr'):
                 with transaction.atomic():
                     cols = row.find_all('td')
                     patch = cols[-2].get_text()
                     if patch == "" and tournament.date_ended > date.today():
                         continue
-                    date_str = cols[-1].get_text()
-                    
-                    date_match = datetime.strptime(date_str, "%Y-%m-%d").date()
-                    matchday, created_match = MatchDay.objects.get_or_create(
+                    date_match = datetime.strptime(cols[-1].get_text(), "%Y-%m-%d").date()
+                    matchday, _ = MatchDay.objects.get_or_create(
                         date=date_match,
                         tournament=tournament,
                     )
 
                     match_ref = cols[0].find('a')
                     if not match_ref:
-                        print(tournament.name)
                         continue
                     match_url = match_ref['href'].replace("..","https://gol.gg").replace("summary/", "game/")
                     blue_team_str, red_team_str = get_teams(match_ref['href'].replace("..","https://gol.gg"), headers)
-                    score_str = cols[2].get_text()
                     
-
+                    score_str = cols[2].get_text()
+                    victory = row.find('td', class_="text_victory")
+                    if not victory:
+                        continue
+                        
                     blue_roster = find_closest_team_roster(blue_team_str, normalized_map)
                     red_roster = find_closest_team_roster(red_team_str, normalized_map)
                     if not blue_roster:
@@ -285,9 +288,6 @@ class Command(BaseCommand):
                         if not red_roster:
                             self.stdout.write(self.style.WARNING(f"Roster not found for:{red_team_str}"))
                             continue
-                    victory = row.find('td', class_="text_victory")
-                    if not victory:
-                        continue
                     winner_str = normalize_team_name(row.find('td', class_="text_victory").get_text())
                     score_stack = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
 
