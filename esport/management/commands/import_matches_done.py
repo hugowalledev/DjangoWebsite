@@ -227,7 +227,7 @@ class Command(BaseCommand):
 
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
 
-        for tournament in Tournament.objects.filter(year=2020).order_by('date_started'):
+        for tournament in Tournament.objects.filter(year=2025).order_by('date_started'):
 
             self.stdout.write(tournament.name)
             rosters = Roster.objects.filter(tournament=tournament)
