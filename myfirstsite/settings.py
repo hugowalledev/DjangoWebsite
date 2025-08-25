@@ -21,9 +21,9 @@ GOOGLE_CLIENT_SECRET = config("GOOGLE_CLIENT_SECRET")
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
 STATICFILES_DIRS = [
-    BASE_DIR / "champions",
-    BASE_DIR / "tournaments",
-    BASE_DIR / "teams",
+    ("champions", BASE_DIR / "champions"),
+    ("tournaments", BASE_DIR / "tournaments"),
+    ("teams", BASE_DIR / "teams"),
 ]
 MEDIA_ROOT=''
 MEDIA_URL=''
