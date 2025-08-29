@@ -205,7 +205,7 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings
-SITE_ID = 4
+SITE_ID = 2
 
 ACCOUNT_SIGNUP_FIELDS = ['username', 'email', 'password1', 'password2']
 ACCOUNT_EMAIL_VERIFICATION = "none"
