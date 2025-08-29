@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900">
+  <div class="w-full max-w-md bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-gray-100">
+      Create an Account
+    </h2>
+    <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">
+      Already have an account?
+      <a href="{% url 'account_login' %}" class="text-blue-600 hover:underline">Sign in</a>
+    </p>
+
+    <form method="post" action="{% url 'account_signup' %}" class="space-y-4">
+      {% csrf_token %}
+
+      {# General errors #}
+      {% if form.non_field_errors %}
+        <div class="text-red-500 text-sm mb-2">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {# Username #}
+      <div>
+        <label for="{{ form.username.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Username
+        </label>
+        <input type="text" name="{{ form.username.name }}" id="{{ form.username.id_for_label }}"
+          value="{{ form.username.value|default_if_none:'' }}"
+          class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-700 dark:text-white {% if form.username.errors %}border-red-500{% endif %}"
+          placeholder="Choose a username">
+        {% if form.username.errors %}
+          <p class="text-red-500 text-sm mt-1">{{ form.username.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      {# Email #}
+      <div>
+        <label for="{{ form.email.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Email
+        </label>
+        <input type="email" name="{{ form.email.name }}" id="{{ form.email.id_for_label }}"
+          value="{{ form.email.value|default_if_none:'' }}"
+          class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-700 dark:text-white {% if form.email.errors %}border-red-500{% endif %}"
+          placeholder="you@example.com">
+        {% if form.email.errors %}
+          <p class="text-red-500 text-sm mt-1">{{ form.email.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      {# Password #}
+      <div>
+        <label for="{{ form.password1.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Password
+        </label>
+        <input type="password" name="{{ form.password1.name }}" id="{{ form.password1.id_for_label }}"
+          class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-700 dark:text-white {% if form.password1.errors %}border-red-500{% endif %}"
+          placeholder="Enter password">
+        {% if form.password1.errors %}
+          <p class="text-red-500 text-sm mt-1">{{ form.password1.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      {# Confirm password #}
+      <div>
+        <label for="{{ form.password2.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+          Confirm Password
+        </label>
+        <input type="password" name="{{ form.password2.name }}" id="{{ form.password2.id_for_label }}"
+          class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-700 dark:text-white {% if form.password2.errors %}border-red-500{% endif %}"
+          placeholder="Repeat password">
+        {% if form.password2.errors %}
+          <p class="text-red-500 text-sm mt-1">{{ form.password2.errors.0 }}</p>
+        {% endif %}
+      </div>
+
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">
+        Sign Up
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

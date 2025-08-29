@@ -202,15 +202,13 @@ AUTH_USER_MODEL = 'users.UserProfile'
 # AllAuth settings
 SITE_ID = 1
 
-ACCOUNT_LOGIN_REDIRECT_URL ="/esport/"
-ACCOUNT_LOGOUT_REDIRECT_URL ="/esport/"
-ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1*', 'password2*']
-ACCOUNT_EMAIL_VERIFICATION = False
-ACCOUNT_PASSWORD_MIN_LENGTH = 8
+ACCOUNT_SIGNUP_FIELDS = ['username', 'email', 'password1', 'password2']
+ACCOUNT_EMAIL_VERIFICATION = "none"
 ACCOUNT_DEFAULT_HTTP_PROTOCOL='http'
 ACCOUNT_LOGOUT_ON_GET = True
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 LOGIN_REDIRECT_URL = '/esport/'
+LOGOUT_REDIRECT_URL ='/esport/'
 
 SOCIALACCOUNT_EMAIL_REQUIRED = True
 SOCIALACCOUNT_EMAIL_VERIFICATION = False
@@ -220,7 +218,7 @@ SOCIALACCOUNT_AUTO_SIGNUP = True
 
 
 # Tailwind settings
-NPM_BIN_PATH = 'C:/Program Files/nodejs/npm.cmd'
+NPM_BIN_PATH = 'C:/NodeJs/npm.cmd'
 
 TAILWIND_APP_NAME = 'theme'
 

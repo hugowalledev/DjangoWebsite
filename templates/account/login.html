@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block content %}
+<div class="flex justify-center items-center min-h-screen bg-gray-50 dark:bg-slate-900">
+  <div class="w-full max-w-md bg-white dark:bg-slate-800 p-6 rounded-lg shadow-md">
+    <h2 class="text-2xl font-bold text-center mb-4 text-gray-900 dark:text-gray-100">
+      Sign In
+    </h2>
+    <p class="text-center text-sm text-gray-600 dark:text-gray-400 mb-6">
+      Don't have an account?
+      <a href="{% url 'account_signup' %}" class="text-blue-600 hover:underline">Sign up</a>
+    </p>
+
+    <form method="post" action="{% url 'account_login' %}" class="space-y-4">
+      {% csrf_token %}
+      {% if request.GET.next %}
+        <input type="hidden" name="next" value="{{ request.GET.next }}">
+      {% endif %}
+
+      {# Non-field errors like "Invalid login" #}
+      {% if form.non_field_errors %}
+        <div class="text-red-500 text-sm mb-2">
+          {% for error in form.non_field_errors %}
+            <p>{{ error }}</p>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {# Loop through login form fields (username/email + password) #}
+      {% for field in form %}
+        <div>
+          <label for="{{ field.id_for_label }}" class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ field.label }}
+          </label>
+          <input type="{{ field.field.widget.input_type }}" name="{{ field.name }}" id="{{ field.id_for_label }}"
+            value="{{ field.value|default_if_none:'' }}"
+            class="w-full px-3 py-2 border rounded-md bg-gray-50 dark:bg-slate-700 dark:text-white {% if field.errors %}border-red-500{% endif %}"
+            placeholder="{{ field.label }}">
+          {% if field.errors %}
+            <p class="text-red-500 text-sm mt-1">{{ field.errors.0 }}</p>
+          {% endif %}
+        </div>
+      {% endfor %}
+
+      <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-md">
+        Log In
+      </button>
+    </form>
+  </div>
+</div>
+{% endblock %}

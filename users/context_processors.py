@@ -1,7 +1,7 @@
-from allauth.account.forms import LoginForm, SignupForm
+from .forms import CustomSignupForm, CustomLoginForm
 
 def auth_forms(request):
     return {
-        'login_form': LoginForm(),
-        'signup_form': SignupForm(),
+        "signup_form": CustomSignupForm(request=request),
+        "login_form": CustomLoginForm(request=request),
     }

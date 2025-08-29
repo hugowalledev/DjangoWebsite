@@ -2,14 +2,13 @@
 {% load static tailwind_tags %}
 {% load socialaccount %}
 
-
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Your Site</title>
-    {% tailwind_css %}
-    <script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My site</title>
+  {% tailwind_css %}
+  <script>
         // Ajoute la classe dark à <html> si l'utilisateur est en mode sombre
         if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.classList.add('dark');
@@ -19,99 +18,148 @@
 
 <body class="bg-gray-200 text-slate-900 dark:bg-slate-900 dark:text-slate-100 min-h-screen transition-colors duration-300">
 
-    <!-- Header -->
-    <header class="flex justify-between items-center p-4 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white shadow">
-        <div class="flex justify-start">
-            <a href="/esport/">Accueil</a>
-        </div>
-        <div class="flex justify-end">
-            {% if user.is_authenticated %}
-                <span class="mr-2"> {{ user.username }} </span>
-                <a href="{% url 'account_logout' %}" class="hover:underline">(Log out)</a>
-            {% else %}
-                <button onclick=openAuthPopup("login") class="hover:underline">Log in</button>
-                <span class="mx-1">/</span>
-                <button onclick=openAuthPopup("signup") class="hover:underline">Sign in</button>
-            {% endif %}
-        </div>
-    </header>
-
-    <!-- Generic Popup Component -->
-    <div id="authPopup" class="hidden fixed inset-0 bg-black/50 backdrop-blur-sm flex justify-center items-center z-50">
-        <div class="bg-white dark:bg-slate-800 dark:text-slate-100 p-6 rounded-xl shadow-xl w-full max-w-sm relative">
-            <!-- Close Button -->
-            <button onclick="closePopup('authPopup')" 
-                    class="absolute top-3 right-3 text-gray-500 hover:text-gray-700 dark:text-gray-300 dark:hover:text-white">
-            &times;
-            </button>
-
-            <!-- Title -->
-            <h2 id="popupTitle" class="text-xl font-semibold mb-4">Login</h2>
-
-            <!-- Google Login -->
-            <a href="{% provider_login_url 'google' %}" 
-            class="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 font-medium py-2 rounded-md hover:bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white dark:hover:bg-slate-600 transition">
-            <img src="/static/images/google-icon.svg" alt="Google" class="w-5 h-5">
-            Continue with Google
-            </a>
-
-            <!-- Divider -->
-            <div class="flex items-center my-4">
-                <div class="flex-grow border-t border-gray-300 dark:border-slate-600"></div>
-                <span class="mx-3 text-gray-400 dark:text-gray-500 text-sm">or</span>
-                <div class="flex-grow border-t border-gray-300 dark:border-slate-600"></div>
-            </div>
-
-            <!-- Email Form -->
-            <form method="POST" id="authForm" action="{% url 'account_login' %}">
-                {% csrf_token %}
-                {{ login_form.as_p }}
-                <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
-                    Continue
-                </button>
-            </form>
-        </div>
+  <!-- Header -->
+  <header class="flex justify-between items-center p-4 bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-white shadow">
+    <div class="flex items-center gap-4">
+      <a href="/esport/" class="font-semibold">Accueil</a>
     </div>
-    <!-- Main Content -->
-    <main class="py-6 px-4">
-        {% block content %}
-        {% endblock %}
-    </main>
+    <div class="flex items-center gap-3">
+      {% if user.is_authenticated %}
+        <span class="mr-2">{{ user.username }}</span>
+        <a href="{% url 'account_logout' %}" class="hover:underline">(Log out)</a>
+      {% else %}
+        <button onclick="openAuthPopup('login')" class="hover:underline">Log in</button>
+        <span>/</span>
+        <button onclick="openAuthPopup('signup')" class="hover:underline">Sign up</button>
+      {% endif %}
+    </div>
+  </header>
 
-    <script>
-        function openLoginPopup() {
-            document.getElementById("loginPopup").classList.remove("hidden");
-        }
-        function openRegisterPopup() {
-            document.getElementById("registerPopup").classList.remove("hidden");
-        }
-        function closePopup(popupId) {
-            document.getElementById(popupId).classList.add("hidden");
-        }
-        function openAuthPopup(type) {
-            document.getElementById("authPopup").classList.remove("hidden");
-            const form = document.getElementById("authForm");
-            const title = document.getElementById("popupTitle");
+  <!-- Generic Popup Component -->
+  <div id="authPopup" class="hidden fixed inset-0 z-50  flex items-center justify-center bg-black/50">
+    <div class="relative w-200 max-w-md p-6 rounded-xl bg-white dark:bg-slate-800 dark:text-slate-100 shadow-xl">
+      <!-- Close -->
+      <button type="button" onclick="closeAuth()" class="absolute top-3 right-3 text-gray-400 hover:text-white">✕</button>
 
-            if (type === "login") {
-                title.textContent = "Login";
-                form.action = "{% url 'account_login' %}";
-                form.innerHTML = `{% csrf_token %}
-                    {{ login_form.as_p|escapejs }}
-                    <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
-                        Continue
-                    </button>`;
-            } else {
-                title.textContent = "Sign up";
-                form.action = "{% url 'account_signup' %}";
-                form.innerHTML = `{% csrf_token %}
-                    {{ signup_form.as_p|escapejs }}
-                    <button type="submit" class="mt-2 px-3 py-1 bg-blue-600 text-white rounded hover:bg-blue-500">
-                        Sign Up
-                    </button>`;
-            }
-        }
-    </script>
+      <h2 id="authTitle" class="text-xl font-semibold mb-4">Login</h2>
 
+      <!-- Google login -->
+      <a href="{% provider_login_url 'google' %}"
+         class="w-full flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 py-2 rounded-md hover:bg-gray-50 dark:bg-slate-700 dark:border-slate-600 dark:text-white">
+        <img src="/static/images/google-icon.svg" alt="Google" class="w-5 h-5">
+        Continue with Google
+      </a>
+
+      <div class="flex items-center my-4">
+        <div class="flex-1 border-t border-gray-300 dark:border-slate-600"></div>
+        <div class="mx-3 text-sm text-gray-400">or</div>
+        <div class="flex-1 border-t border-gray-300 dark:border-slate-600"></div>
+      </div>
+
+      <!-- Login form -->
+      <form id="loginForm" method="post" action="{% url 'account_login' %}" class="space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% for field in login_form %}
+          <div class="mb-4">
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium mb-1">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}
+              <p class="text-red-500 text-sm mt-1">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-500">Continue</button>
+      </form>
+
+      <!-- Signup form -->
+      <form id="signupForm" method="POST" action="{% url 'account_signup' %}" class="hidden space-y-3">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ request.get_full_path }}">
+        {% for field in signup_form %}
+          <div class="mb-4">
+            <label for="{{ field.id_for_label }}" class="block text-sm font-medium mb-1">{{ field.label }}</label>
+            {{ field }}
+            {% for error in field.errors %}
+              <p class="text-red-500 text-sm mt-1">{{ error }}</p>
+            {% endfor %}
+          </div>
+        {% endfor %}
+        <button type="submit" class="w-full py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-500">Sign up</button>
+      </form>
+
+      <p class="text-sm text-gray-400 mt-3">
+        <span id="authSwitchText">No account?</span>
+        <button id="authSwitchBtn" class="text-blue-400 ml-1" onclick="toggleAuth()">Sign up</button>
+      </p>
+    </div>
+  </div>
+
+  <!-- Page body -->
+  <main class="py-6 px-4">
+    {% block content %}{% endblock %}
+  </main>
+
+  <!-- small JS (no innerHTML overwrite) -->
+  <script>
+    function openAuthPopup(type='login') {
+      const popup = document.getElementById('authPopup');
+      popup.classList.remove('hidden');
+      showAuth(type);
+    }
+    function closeAuth() {
+      document.getElementById('authPopup').classList.add('hidden');
+    }
+    function showAuth(type) {
+      const loginForm = document.getElementById('loginForm');
+      const signupForm = document.getElementById('signupForm');
+      const authTitle = document.getElementById('authTitle');
+      const switchText = document.getElementById('authSwitchText');
+      const switchBtn = document.getElementById('authSwitchBtn');
+
+      if (type === 'signup') {
+        loginForm.classList.add('hidden');
+        signupForm.classList.remove('hidden');
+        authTitle.textContent = 'Sign up';
+        switchText.textContent = 'Already have an account?';
+        switchBtn.textContent = 'Log in';
+      } else {
+        signupForm.classList.add('hidden');
+        loginForm.classList.remove('hidden');
+        authTitle.textContent = 'Login';
+        switchText.textContent = 'No account?';
+        switchBtn.textContent = 'Sign up';
+      }
+    }
+
+    // toggle between login / signup
+    function toggleAuth() {
+      const signupForm = document.getElementById('signupForm');
+      if (signupForm.classList.contains('hidden')) {
+        showAuth('signup');
+      } else {
+        showAuth('login');
+      }
+    }
+
+    // close on escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeAuth();
+    });
+
+    // click outside modal to close
+    document.getElementById('authPopup').addEventListener('click', function (e) {
+      if (e.target === this) closeAuth();
+    });
+
+    // ✅ Auto-open popup if there are errors
+    document.addEventListener("DOMContentLoaded", function () {
+      const loginErrors = document.querySelectorAll("#loginForm .text-red-500");
+      const signupErrors = document.querySelectorAll("#signupForm .text-red-500");
+
+      
+    });
+  </script>
+  
 </body>
 </html>
