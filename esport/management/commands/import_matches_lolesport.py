@@ -207,8 +207,8 @@ class Command(BaseCommand):
                         
 
 
-                        blue_roster = find_closest_team_roster(blue_team_name, normalized_map, 0.6)
-                        red_roster = find_closest_team_roster(red_team_name, normalized_map, 0.6)
+                        blue_roster = find_closest_team_roster(blue_team_name, normalized_map, 0.8)
+                        red_roster = find_closest_team_roster(red_team_name, normalized_map, 0.8)
                         if not blue_roster:
                             blue_alt_str = team_logo_imgs[0].parent.get_text()
                             blue_roster = find_closest_team_roster(blue_alt_str, normalized_map, 0.9)

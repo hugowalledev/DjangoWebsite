@@ -3,6 +3,7 @@ import requests
 from bs4 import BeautifulSoup
 from datetime import date, datetime, time, timedelta
 import difflib
+from django.utils import timezone
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Q
@@ -226,8 +227,8 @@ class Command(BaseCommand):
         headers = {'User-Agent': 'Mozilla/5.0'}
 
         normalized_champions = {fix_champion(c.name): c for c in Champion.objects.all()}
-
-        for tournament in Tournament.objects.filter(year=2025).order_by('date_started'):
+        now = timezone.now().date()
+        for tournament in Tournament.objects.filter(date_ended__gte=now, date_started__lte=now + timedelta(days=5)).order_by('date_started'):
 
             self.stdout.write(tournament.name)
             rosters = Roster.objects.filter(tournament=tournament)
