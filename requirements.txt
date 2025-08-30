@@ -39,7 +39,7 @@ PyJWT==2.10.1
 python-dateutil==2.9.0.post0
 python-decouple==3.8
 python-slugify==8.0.4
-pywin32==311
+PyJWT==1.7.1
 PyYAML==6.0.2
 requests==2.32.4
 rich==14.0.0
