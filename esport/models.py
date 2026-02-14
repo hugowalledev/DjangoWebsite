@@ -85,7 +85,7 @@ class MatchDay(models.Model):
 class Match(models.Model):
     name = models.CharField(max_length=255)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
-    scheduled_hour = models.TimeField(null=True, blank=True)
+    scheduled_hour = models.TimeField(null=False, blank=False)
     scheduled_time = models.DateTimeField(editable=False)
     blue_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="blue_matches")
     red_roster = models.ForeignKey(Roster, on_delete=models.CASCADE, related_name="red_matches")
