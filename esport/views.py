@@ -5,7 +5,6 @@ from django.views import generic, View
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from .models import Match, MatchDay, MVPDayVote, MVPResetState, Prediction, Player, PlayerStats, Roster, RosterPlayer, Tournament, Team, UserProfile
-from .forms import MatchPredictionForm
 from django.forms import formset_factory
 from django.urls import reverse
 from django.utils import timezone
