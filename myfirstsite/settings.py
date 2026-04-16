@@ -182,7 +182,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Allauth / Sites
 
-SITE_ID = 2
+SITE_ID = 1
 
 ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1', 'password2']
 ACCOUNT_EMAIL_VERIFICATION = "none"
