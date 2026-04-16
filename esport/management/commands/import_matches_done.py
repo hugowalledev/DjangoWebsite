@@ -8,6 +8,7 @@ from django.core.management.base import BaseCommand
 from django.db import transaction
 from django.db.models import Q
 from esport.models import  Champion, Game, Match, MatchDay, PlayerStats, Roster, RosterPlayer, Team, Tournament
+from esport.utils import normalize_team_name
 import unicodedata
 from urllib.parse import quote
   
@@ -40,20 +41,11 @@ def fix_champion(name):
     
     return name
 
-def normalize_team_name(name):
-    # Lowercase, remove apostrophes/accents, trim spaces, remove sponsors
-    name = name.strip()
-    if name == "TT":
-        name = "ThunderTalk Gaming"
-    name = name.lower()
-    name = name.replace("’", "").replace("'", "").replace("`", "")
-    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode("utf-8")
-    name = re.sub(r"\bs?\b", "", name)   # remove stray s
-    name = re.sub(r"\s+", " ", name).strip()
-    # Remove prefixes like "movistar", "team", "esports", etc. (customize this)
-    name = re.sub(r"^(movistar|team|esports|gaming|club|fc|ac|the|-)\s+", "", name)
-    
-    return name
+def normalize_player_name(name):
+    import unicodedata
+    name = name.strip().lower()
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+    name = re.sub(r"[^a-z0-9]", name)
 
 def find_closest_team_roster(scraped_team_name, normalized_map):
 
@@ -75,6 +67,15 @@ def find_closest_team_roster(scraped_team_name, normalized_map):
 
     return None
 
+def find_roster_player(scraped_name, roster_player_map_normalized):
+    target = normalize_player_name(scraped_name)
+    if target in roster_player_map_normalized:
+        return roster_player_map_normalized[target]
+    matches = difflib.get_close_matches(target, list(roster_play_map_normalized.keys()), n=1, cutoff=0.8)
+    if matches:
+        return roster_player_map_normalized[matches[0]]
+    return None
+    
 def parse_kda(kda_string):
     numbers = re.findall(r"\d+", kda_string)
     if len(numbers) < 3:
@@ -156,7 +157,7 @@ def save_game_and_stats(game_data, match, game_number, normalized_champions, ros
         champion_name = data['champion_name']
         kda = data['kda']
 
-        roster_player = roster_player_map.get(player_name.lower())
+        roster_player = find_roster_player(player_name, roster_player_map)
         if not roster_player:
             summary['error_details'].append({
                 "type": "roster_player_missing",
@@ -321,10 +322,11 @@ class Command(BaseCommand):
                         match.save()
 
                         roster_player_map = {}
+                        for rp in all_roster_players:
+                            names = [rp.player.name] + [a.strip() for a in rp.player.aliases.split(",") if a.strip()]
+                            for n in names:
+                                roster_player_map[normalize_player_name(n)] = rp
                         number_of_games = winner_score + loser_score
-                        for rp in RosterPlayer.objects.filter(roster__in=[match.blue_roster, match.red_roster]):
-                            roster_player_map[rp.player.name.lower()] = rp
-
 
                         if match.best_of == 1:
                             import_game(match_url, headers, match, 1, normalized_champions, roster_player_map, summary)
@@ -351,9 +353,11 @@ class Command(BaseCommand):
                             }
                         )
                         roster_player_map = {}
+                        for rp in all_roster_players:
+                            names = [rp.player.name] + [a.strip() for a in rp.player.aliases.split(",") if a.strip()]
+                            for n in names:
+                                roster_player_map[normalize_player_name(n)] = rp
                         number_of_games = winner_score + loser_score
-                        for rp in RosterPlayer.objects.filter(roster__in=[obj_match.blue_roster, obj_match.red_roster]):
-                            roster_player_map[rp.player.name.lower()] = rp
 
 
                         if obj_match.best_of == 1:

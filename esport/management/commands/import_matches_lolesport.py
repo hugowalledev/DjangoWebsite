@@ -6,17 +6,9 @@ import difflib
 from django.core.management.base import BaseCommand
 from django.db import transaction
 from esport.models import  Champion, Match, MatchDay, PlayerStats, Roster, RosterPlayer, Team, Tournament
+from esport.utils import normalize_team_name
 import unicodedata
 from urllib.parse import quote
-
-def normalize_team_name(name):
-    # Lowercase, remove apostrophes/accents, trim spaces, remove sponsors
-    name = name.lower()
-    name = name.replace("’", "").replace("'", "").replace("`", "").replace(" ","")
-    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode("utf-8")
-    name = re.sub(r"^(movistar|team|esports|club|fc|ac|the)\s+", "", name)
-    
-    return name
 
 def find_closest_team_roster(scraped_team_name, normalized_map, cutoff):
 

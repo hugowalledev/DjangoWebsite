@@ -1,4 +1,3 @@
-
 from django.core.files.storage import FileSystemStorage
 
 class OverwriteStorage(FileSystemStorage):
@@ -21,3 +20,18 @@ def get_possible_scores(match):
     elif bo == 5:
         return [(3, 0), (3, 1), (3, 2)]
     return []
+
+def normalize_team_name(name):
+    name = name.strip()
+
+    if name == "TT":
+        name = "ThunderTalk Gaming"
+    name = name.lower()
+    name = name.replace("'", "").replace("'", "").replace("`", "")
+    # Normalise les accents
+    name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
+    # Normalise les espaces (ne les supprime PAS — conserve la lisibilité pour difflib)
+    name = re.sub(r"\s+", " ", name).strip()
+    # Retire les préfixes génériques
+    name = re.sub(r"^(movistar|team|esports|gaming|club|fc|ac|the|-)\s+", "", name)
+    return name
