@@ -18,7 +18,7 @@ services:
     image: dimitri/pgloader
     command: pgloader /data/sqlite_to_postgres.load
     volumes:
-      - E:/INFO/DjangoWebsite:/data
+      - .:/data
     networks:
       - myapp-net
     depends_on:
