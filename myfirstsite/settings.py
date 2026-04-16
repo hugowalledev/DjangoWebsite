@@ -63,10 +63,14 @@ INSTALLED_APPS = [
     # Tailwind
     'tailwind',
     'theme',
-    'django_browser_reload',
-
-    'django_extensions',
 ]
+
+if DEBUG:
+    INSTALLED_APPS += [
+        'django_browser_reload',
+        'django_extensions',
+        'debug_toolbar',
+    ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -78,8 +82,9 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
     'allauth.account.middleware.AccountMiddleware',
-    'django_browser_reload.middleware.BrowserReloadMiddleware',
 ]
+if DEBUG:
+    MIDDLEWARE += ['django_browser_reload.middleware.BrowserReloadMiddleware',]
 
 ROOT_URLCONF = 'myfirstsite.urls'
 
