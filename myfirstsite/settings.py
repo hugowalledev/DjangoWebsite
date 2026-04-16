@@ -133,6 +133,17 @@ AUTHENTICATION_BACKENDS = [
 LOGIN_REDIRECT_URL = '/esport/'
 LOGOUT_REDIRECT_URL ='/esport/'
 
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {'class': 'logging.StreamHandler'},
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'ERROR',
+    },
+}
 
 # Password validation
 
@@ -182,7 +193,7 @@ SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 # Allauth / Sites
 
-SITE_ID = 2
+SITE_ID = 1
 
 ACCOUNT_SIGNUP_FIELDS = ['username*', 'email*', 'password1', 'password2']
 ACCOUNT_EMAIL_VERIFICATION = "none"
@@ -225,8 +236,9 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 
 # Tailwind settings
-
-NPM_BIN_PATH = 'C:/NodeJs/npm.cmd'
+if DEBUG:
+    NPM_BIN_PATH = 'C:/NodeJs/npm.cmd'
+    
 TAILWIND_APP_NAME = 'theme'
 
 JAZZMIN_SETTINGS = {"theme": "darkly"}
