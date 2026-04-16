@@ -225,8 +225,9 @@ DATA_UPLOAD_MAX_NUMBER_FIELDS = 100000
 
 
 # Tailwind settings
-
-NPM_BIN_PATH = 'C:/NodeJs/npm.cmd'
+if DEBUG:
+    NPM_BIN_PATH = 'C:/NodeJs/npm.cmd'
+    
 TAILWIND_APP_NAME = 'theme'
 
 JAZZMIN_SETTINGS = {"theme": "darkly"}
