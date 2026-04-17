@@ -1,4 +1,3 @@
-import os
 import re
 import requests
 from datetime import datetime
@@ -90,15 +89,6 @@ def fetch_and_save_logo(obj, image_url, field_name, tournament_name, style, debu
     field = getattr(obj, field_name)
     upload_dir = field.field.upload_to
     filename = f"{slugify(tournament_name)}{'-' + debug_label if debug_label else ''}.png"
-    full_path = os.path.join(settings.MEDIA_ROOT, upload_dir, filename)
-
-    # Remove existing file
-    try:
-        if os.path.exists(full_path):
-            os.remove(full_path)
-    except Exception as e:
-        print(style.WARNING(f"Error deleting {full_path}: {e}"))
-
     # Download and save new image
     response = requests.get(image_url)
     if response.status_code == 200:

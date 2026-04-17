@@ -1,4 +1,5 @@
 from django.core.files.storage import FileSystemStorage
+from django.conf import settings
 
 class OverwriteStorage(FileSystemStorage):
     def get_available_name(self, name, max_length=None):
@@ -35,3 +36,24 @@ def normalize_team_name(name):
     # Retire les préfixes génériques
     name = re.sub(r"^(movistar|team|esports|gaming|club|fc|ac|the|-)\s+", "", name)
     return name
+
+if settings.USE_S3 if hasattr(settings, 'USE_S3') else False:
+    from storages.backends.s3boto3 import S3BotoStorage
+    class OverwriteStorage(s3Boto3Storage):
+        def get_available_name(self, name, max_length=None):
+            try:
+                if self.exists(name):
+                    self.delete(name)
+                except Exception:
+                    pass
+                return name
+else:
+    from django.core.files.storage import FileSystemStorage
+    class OverwriteStorage(FileSystemStorage):
+        def get_available_name(self, name, max_length=None):
+            try:
+                if self.exists(name):
+                    self.delete(name)
+                except Exception:
+                    pass
+                return name
