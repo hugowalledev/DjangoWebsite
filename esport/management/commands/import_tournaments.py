@@ -107,7 +107,7 @@ def fetch_and_save_logo(obj, image_url, field_name, tournament_name, style, debu
     else:
         print(style.NOTICE(f"[DEBUG] Could not fetch {debug_label} logo: {image_url}"))
 def get_tournament_league(link, headers):
-    res = requests.get(link, headers)
+    res = requests.get(link, headers=headers)
     soup = BeautifulSoup(res.text, 'html.parser')
     div = soup.find(text="Series:")
     if not div:
@@ -119,29 +119,40 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         url = "https://liquipedia.net/leagueoflegends/S-Tier_Tournaments"
         headers={'User-Agent': 'Mozilla/5.0'}
-        res = requests.get(url, headers)
+        res = requests.get(url, headers=headers)
+        
         soup = BeautifulSoup(res.text, 'html.parser')
-        grid_tables = soup.select("div.gridTable")
+        grid_tables = soup.select("div.table2.tournaments-listing")
         count = 0
         for grid_table in grid_tables:
-            for row in grid_table.select('.gridRow'):
-                cells = row.find_all("div", class_="gridCell")
-                if len(cells) < 1:
+            for row in grid_table.select("tr.table2__row--body"):
+                cells = row.find_all("td", recursive=False)
+                if len(cells) < 2:
                     continue
-                a_tags = cells[0].find_all('a')
+                tournament_cell = cells[1]
+                tournament_link = tournament_cell.find("a")
+                if not tournament_link:
+                    continue
 
-                if not a_tags: 
-                    continue
-                tournament_link = a_tags[-1]
                 tournament_name = tournament_link.text.strip()
                 tournament_slug = slugify(tournament_name)
                 
                 
                 liquipedia_url = "https://liquipedia.net" + tournament_link.get("href", "")
-                date_str = cells[1].get_text(strip=True)
+                date_str = cells[2].get_text(strip=True)
                 start_date, end_date = parse_liquipedia_dates(date_str)
+                if not start_date:
+                    continue
+                
                 tournament_league = get_tournament_league(liquipedia_url, headers)
-                tournament_split = tournament_name.replace(str(start_date.year),"").replace(tournament_league,"").strip().replace(" ","_")
+                tournament_split = (
+                    tournament_name
+                    .replace(str(start_date.year),"")
+                    .replace(tournament_league,"")
+                    .strip()
+                    .replace(" ","_")
+                )
+
                 obj, created = Tournament.objects.update_or_create(
                     slug=tournament_slug,
                     defaults={
@@ -164,19 +175,32 @@ class Command(BaseCommand):
                         f"Exists: {tournament_name}"
                     ))
 
-                tournament_dark = cells[0].find('span', class_="darkmode")
-                tournament_logo = cells[0].find('img')
-                # Light logo
-                tournament_logo_url = f"https://liquipedia.net{tournament_logo['src']}"
-                fetch_and_save_logo(obj, tournament_logo_url, "logo", tournament_name, self.style)
 
-                # Dark logo
-                if tournament_dark:
-                    tournament_dark_logo = tournament_dark.find('img')
-                    if tournament_dark_logo:
-                        tournament_dark_logo_url = f"https://liquipedia.net{tournament_dark_logo['src']}"
+                icon_cell = cells[0]
+
+                light_span = icon_cell.find("span", class_="league-icon-small-image")
+
+                light_span = icon_cell.find(
+                    lambda tag: tag.name == "span"
+                    and "league-icon-small-image" in tag.get("class", [])
+                    and "darkmode" not in tag.get("class", [])
+                )
+                if light_span:
+                    img = light_span.find("img")
+                    if img:
+                        tournament_logo_url = "https://liquipedia.net" + img["src"]
+                        fetch_and_save_logo(obj, tournament_logo_url, "logo", tournament_name, self.style)
+                
+                dark_span = icon_cell.find(
+                            lambda tag: tag.name == "span"
+                            and "league-icon-small-image" in tag.get("class", [])
+                            and "darkmode" in tag.get("class", [])
+                        )
+                if dark_span:
+                    img = dark_span.find("img")
+                    if img:
+                        tournament_dark_logo_url = "https://liquipedia.net" + img["src"]
                         fetch_and_save_logo(obj, tournament_dark_logo_url, "logo_dark", tournament_name, self.style, debug_label="dark")
-
-
+              
         self.stdout.write(self.style.SUCCESS(f"\nImported {count} tournaments."))
  
