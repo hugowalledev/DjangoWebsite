@@ -26,15 +26,15 @@ def normalize_team_name(name):
     return name
 
 if settings.USE_S3 if hasattr(settings, 'USE_S3') else False:
-    from storages.backends.s3boto3 import S3BotoStorage
-    class OverwriteStorage(s3Boto3Storage):
+    from storages.backends.s3boto3 import S3Boto3Storage
+    class OverwriteStorage(S3Boto3Storage):
         def get_available_name(self, name, max_length=None):
             try:
                 if self.exists(name):
                     self.delete(name)
-                except Exception:
-                    pass
-                return name
+            except Exception:
+                pass
+            return name
 else:
     from django.core.files.storage import FileSystemStorage
     class OverwriteStorage(FileSystemStorage):
@@ -42,6 +42,6 @@ else:
             try:
                 if self.exists(name):
                     self.delete(name)
-                except Exception:
-                    pass
-                return name
+            except Exception:
+                pass
+            return name

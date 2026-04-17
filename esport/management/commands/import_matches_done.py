@@ -45,7 +45,7 @@ def normalize_player_name(name):
     import unicodedata
     name = name.strip().lower()
     name = unicodedata.normalize('NFKD', name).encode('ASCII', 'ignore').decode('utf-8')
-    name = re.sub(r"[^a-z0-9]", name)
+    name = re.sub(r"[^a-z0-9]", "", name)
 
 def find_closest_team_roster(scraped_team_name, normalized_map):
 
@@ -71,7 +71,7 @@ def find_roster_player(scraped_name, roster_player_map_normalized):
     target = normalize_player_name(scraped_name)
     if target in roster_player_map_normalized:
         return roster_player_map_normalized[target]
-    matches = difflib.get_close_matches(target, list(roster_play_map_normalized.keys()), n=1, cutoff=0.8)
+    matches = difflib.get_close_matches(target, list(roster_player_map_normalized.keys()), n=1, cutoff=0.8)
     if matches:
         return roster_player_map_normalized[matches[0]]
     return None
