@@ -45,6 +45,7 @@ class Player(models.Model):
     photo = models.ImageField(upload_to="players", blank=True, null=True, storage=overwrite_storage)
     country = models.CharField(max_length=255)
     slug = models.SlugField(unique=True, blank=True, null=True)
+    lp_slug = models.CharField(max_length=255, blank=True, default='', db_index=True)
     def __str__(self):
         return f"{self.name}"
 
