@@ -507,11 +507,26 @@ class Command(BaseCommand):
                         team_slug = slugify(team_name)
 
                     # --- Upsert Team ---
+                    # Key on slug (the unique constraint) rather than name, so that
+                    # teams whose name varies slightly across tournaments (e.g. "Gen.G"
+                    # vs "Gen.G Esports") don't collide. If the slug already exists we
+                    # update the name to whatever Liquipedia shows now.
                     try:
-                        obj_team, created_team = Team.objects.update_or_create(
-                            name=team_name,
-                            defaults={'region': team_region, 'slug': team_slug},
+                        obj_team, created_team = Team.objects.get_or_create(
+                            slug=team_slug,
+                            defaults={'name': team_name, 'region': team_region},
                         )
+                        if not created_team:
+                            # Update name/region in case they changed
+                            updated = False
+                            if obj_team.name != team_name:
+                                obj_team.name = team_name
+                                updated = True
+                            if obj_team.region != team_region:
+                                obj_team.region = team_region
+                                updated = True
+                            if updated:
+                                obj_team.save()
                     except Exception as e:
                         self.stdout.write(self.style.WARNING(f"  DB error for team {team_name}: {e}"))
                         continue
@@ -538,8 +553,6 @@ class Command(BaseCommand):
                         players_data += parse_player_table_2025(sub_content, False, players_to_import)
 
                     # --- Bulk-fetch existing DB objects for efficiency ---
-                    # Build a map of name -> Player for all known players
-                    # (both by current name and by any stored alias)
                     existing_players = Player.objects.filter(name__in=players_to_import)
                     existing_rps = RosterPlayer.objects.filter(roster=obj_roster)
                     player_map = {p.name: p for p in existing_players}
@@ -547,119 +560,178 @@ class Command(BaseCommand):
                     rosterplayer_map = {(rp.player_id, rp.roster_id) for rp in existing_rps}
 
                     for nickname, nationality, role, is_starter, player_link in players_data:
-                        # --- 1. Try to find an existing player ---
-                        player = player_map.get(nickname)
+                        # -------------------------------------------------------------------
+                        # Player resolution — four layers, most reliable first.
+                        #
+                        # The Liquipedia URL is the ground truth for player identity.
+                        # Two players can share a nickname (e.g. two "Doran"s) but they
+                        # will always have distinct URLs. We derive a stable lp_slug from
+                        # the URL and store/match on that before falling back to name/alias
+                        # matching, which can produce false positives on shared nicknames.
+                        # -------------------------------------------------------------------
+
+                        # Extract the Liquipedia page slug from the URL, e.g.:
+                        #   https://liquipedia.net/leagueoflegends/Doran_(support_player)
+                        #   → "doran_(support_player)"
+                        lp_slug = None
+                        if player_link:
+                            lp_slug = slugify(player_link.rstrip('/').rsplit('/', 1)[-1])
+
+                        player = None
+                        aliases = []
+
+                        # --- Layer 1: match by stored liquipedia_url (exact, most reliable) ---
+                        if player_link and hasattr(Player, 'liquipedia_url'):
+                            player = Player.objects.filter(liquipedia_url=player_link).first()
+                            if player:
+                                self.stdout.write(self.style.NOTICE(
+                                    f"  Matched {nickname} via liquipedia_url"
+                                ))
+
+                        # --- Layer 2: match by Liquipedia page slug stored in lp_slug field ---
+                        if not player and lp_slug and hasattr(Player, 'lp_slug'):
+                            player = Player.objects.filter(lp_slug=lp_slug).first()
+                            if player:
+                                self.stdout.write(self.style.NOTICE(
+                                    f"  Matched {nickname} via lp_slug '{lp_slug}'"
+                                ))
+
+                        # --- Layer 3: match by current name (cheap, in-memory first) ---
+                        if not player:
+                            player = player_map.get(nickname)
 
                         if not player:
-                            # Not found by current name — fetch aliases first so we can
-                            # check whether this nickname is a known alias of an existing player.
-                            aliases = []
+                            # Not found yet — fetch aliases from the player page so we can
+                            # use them for further matching AND for storing on creation.
                             if player_link:
                                 aliases = get_player_aliases(player_link)
 
-                            # Build the full set of names to search: current + all aliases
+                            # 3a. Name or alias matches an existing player
                             all_names = {nickname} | set(aliases)
+                            candidate = Player.objects.filter(name__in=all_names).first()
 
-                            # Check if any of those names match a player already in the DB
-                            player = Player.objects.filter(name__in=all_names).first()
-
-                            if not player:
-                                # Also search inside aliases fields (handles the reverse case:
-                                # player stored as "nuclearint" with no alias yet, now appearing
-                                # as "nuc" whose Liquipedia page lists "Nuclearint" as an alias)
+                            # 3b. Alias field on an existing player contains one of our aliases
+                            if not candidate:
                                 for alias in aliases:
-                                    player = Player.objects.filter(aliases__icontains=alias).first()
-                                    if player:
+                                    candidate = Player.objects.filter(
+                                        aliases__icontains=alias
+                                    ).first()
+                                    if candidate:
                                         self.stdout.write(self.style.NOTICE(
                                             f"  Matched {nickname} to existing player "
-                                            f"'{player.name}' via alias '{alias}'"
+                                            f"'{candidate.name}' via alias '{alias}'"
                                         ))
                                         break
 
-                            if not player:
-                                # Last resort: look up by slug (the unique DB constraint).
-                                # Catches players stored under a different name/capitalisation
-                                # that would still produce the same slug.
-                                player = Player.objects.filter(slug=slugify(nickname)).first()
-                                if player:
+                            # 3c. Slug match — same nickname, different capitalisation
+                            if not candidate:
+                                candidate = Player.objects.filter(
+                                    slug=slugify(nickname)
+                                ).first()
+                                if candidate:
                                     self.stdout.write(self.style.NOTICE(
                                         f"  Matched {nickname} to existing player "
-                                        f"'{player.name}' via slug"
+                                        f"'{candidate.name}' via slug"
                                     ))
 
-                            if player:
-                                # Found via alias or slug — update name to the current
-                                # in-game ID and refresh aliases
-                                changed = False
-                                if player.name != nickname:
-                                    new_slug = slugify(nickname)
-                                    # Check if the target slug is already taken by a
-                                    # *different* player. This happens when e.g. the DB
-                                    # has both "GoDlike" (found via alias) and a separate
-                                    # "ackerman" record. In that case skip the rename —
-                                    # the existing "ackerman" record is the right one.
-                                    slug_conflict = Player.objects.filter(
-                                        slug=new_slug
-                                    ).exclude(pk=player.pk).first()
-                                    if slug_conflict:
-                                        self.stdout.write(self.style.NOTICE(
-                                            f"  Skipping rename '{player.name}' → '{nickname}': "
-                                            f"slug already taken by '{slug_conflict.name}' "
-                                            f"(pk={slug_conflict.pk}). Using existing record."
-                                        ))
-                                        # Use the player that already owns the target slug
-                                        player = slug_conflict
-                                    else:
-                                        self.stdout.write(self.style.NOTICE(
-                                            f"  Renaming player '{player.name}' → '{nickname}'"
-                                        ))
-                                        player.name = nickname
-                                        player.slug = new_slug
-                                        changed = True
-                                if aliases and player.aliases != ', '.join(aliases):
-                                    player.aliases = ', '.join(aliases)
-                                    changed = True
-                                if changed:
-                                    player.save()
-                                player_map[nickname] = player
-
-                            else:
-                                # Genuinely new player — create them
-                                if aliases:
+                            # Disambiguation guard: if the candidate has a stored lp_slug
+                            # that differs from ours, they are different players who happen
+                            # to share a nickname (e.g. two "Doran"s). Reject the match.
+                            if candidate and lp_slug and hasattr(Player, 'lp_slug'):
+                                stored = getattr(candidate, 'lp_slug', None)
+                                if stored and stored != lp_slug:
                                     self.stdout.write(self.style.NOTICE(
-                                        f"  Aliases for {nickname}: {', '.join(aliases)}"
+                                        f"  Rejected name match for '{nickname}': "
+                                        f"lp_slug mismatch "
+                                        f"(stored='{stored}', incoming='{lp_slug}'). "
+                                        f"Treating as a new player."
                                     ))
-                                # Use get_or_create on slug as the unique key to avoid
-                                # IntegrityError on race conditions or repeated imports
-                                player, created = Player.objects.get_or_create(
-                                    slug=slugify(nickname),
-                                    defaults={
-                                        'name': nickname,
-                                        'country': nationality,
-                                        'aliases': ', '.join(aliases),
-                                    },
-                                )
-                                if not created:
-                                    # Slug already existed (shouldn't happen after the slug
-                                    # lookup above, but be safe) — just update what we can
-                                    update_fields = []
-                                    if aliases and player.aliases != ', '.join(aliases):
-                                        player.aliases = ', '.join(aliases)
-                                        update_fields.append('aliases')
-                                    if update_fields:
-                                        player.save(update_fields=update_fields)
-                                player_map[nickname] = player
+                                    candidate = None
+
+                            player = candidate
+
+                        if player:
+                            # Found — update name, slug, aliases, and lp_slug if needed
+                            changed = False
+                            if player.name != nickname:
+                                new_slug = slugify(nickname)
+                                slug_conflict = Player.objects.filter(
+                                    slug=new_slug
+                                ).exclude(pk=player.pk).first()
+                                if slug_conflict:
+                                    # The target slug belongs to a different player.
+                                    # If it's the same Liquipedia page (same lp_slug),
+                                    # use that record; otherwise skip the rename.
+                                    self.stdout.write(self.style.NOTICE(
+                                        f"  Skipping rename '{player.name}' → '{nickname}': "
+                                        f"slug taken by '{slug_conflict.name}' "
+                                        f"(pk={slug_conflict.pk}). Using existing record."
+                                    ))
+                                    player = slug_conflict
+                                else:
+                                    self.stdout.write(self.style.NOTICE(
+                                        f"  Renaming player '{player.name}' → '{nickname}'"
+                                    ))
+                                    player.name = nickname
+                                    player.slug = new_slug
+                                    changed = True
+                            if aliases and player.aliases != ', '.join(aliases):
+                                player.aliases = ', '.join(aliases)
+                                changed = True
+                            # Store lp_slug for future disambiguation
+                            if lp_slug and hasattr(Player, 'lp_slug'):
+                                if getattr(player, 'lp_slug', None) != lp_slug:
+                                    player.lp_slug = lp_slug
+                                    changed = True
+                            if changed:
+                                player.save()
+                            player_map[nickname] = player
 
                         else:
-                            # Player found by name — update aliases if the field is still empty
-                            if player_link and not getattr(player, 'aliases', None):
-                                aliases = get_player_aliases(player_link)
-                                if aliases:
+                            # Genuinely new player — create them
+                            if aliases:
+                                self.stdout.write(self.style.NOTICE(
+                                    f"  Aliases for {nickname}: {', '.join(aliases)}"
+                                ))
+                            defaults = {
+                                'name': nickname,
+                                'country': nationality,
+                                'aliases': ', '.join(aliases),
+                            }
+                            if lp_slug and hasattr(Player, 'lp_slug'):
+                                defaults['lp_slug'] = lp_slug
+
+                            # Use get_or_create keyed on lp_slug if available (handles
+                            # two players with the same nickname gracefully), otherwise
+                            # fall back to slug (which is derived from the nickname).
+                            if lp_slug and hasattr(Player, 'lp_slug'):
+                                player, created = Player.objects.get_or_create(
+                                    lp_slug=lp_slug,
+                                    defaults=defaults,
+                                )
+                            else:
+                                player, created = Player.objects.get_or_create(
+                                    slug=slugify(nickname),
+                                    defaults=defaults,
+                                )
+                            if not created:
+                                update_fields = []
+                                if aliases and player.aliases != ', '.join(aliases):
                                     player.aliases = ', '.join(aliases)
-                                    player.save(update_fields=['aliases'])
-                                    self.stdout.write(self.style.NOTICE(
-                                        f"  Updated aliases for {nickname}: {', '.join(aliases)}"
-                                    ))
+                                    update_fields.append('aliases')
+                                if update_fields:
+                                    player.save(update_fields=update_fields)
+                            player_map[nickname] = player
+
+                        # Update aliases if the player was found by name but has none yet
+                        if not aliases and player_link and not getattr(player, 'aliases', None):
+                            aliases = get_player_aliases(player_link)
+                            if aliases:
+                                player.aliases = ', '.join(aliases)
+                                player.save(update_fields=['aliases'])
+                                self.stdout.write(self.style.NOTICE(
+                                    f"  Updated aliases for {nickname}: {', '.join(aliases)}"
+                                ))
 
                         rp_key = (player.id, obj_roster.id)
                         if rp_key in rosterplayer_map:

@@ -1,4 +1,6 @@
 from django.conf import settings
+import unicodedata
+import re
 
 def get_possible_scores(match):
     bo = getattr(match, 'best_of', None)
