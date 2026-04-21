@@ -383,9 +383,10 @@ class Command(BaseCommand):
         "Imports Teams and Players from Liquipedia.\n\n"
         "Default (no flags): imports tournaments that are currently running or "
         "start within the next 7 days.\n"
-        "  --year YYYY   : import all tournaments for a specific year\n"
-        "  --all         : import every tournament in the DB (use with caution)\n"
-        "  --pause N     : seconds to pause between tournaments (default 5)"
+        "  --tournament NAME  : import a single tournament by name or Liquipedia URL\n"
+        "  --year YYYY        : import all tournaments for a specific year\n"
+        "  --all              : import every tournament in the DB (use with caution)\n"
+        "  --pause N          : seconds to pause between tournaments (default 5)"
     )
 
     def add_arguments(self, parser):
@@ -400,6 +401,18 @@ class Command(BaseCommand):
             '--all',
             action='store_true',
             help='Import every tournament in the database.',
+        )
+        group.add_argument(
+            '--tournament',
+            type=str,
+            metavar='NAME_OR_URL',
+            help=(
+                'Import a single tournament by name (partial match) or '
+                'Liquipedia URL. '
+                'Examples: '
+                '--tournament "LEC 2026 Spring" '
+                '--tournament "https://liquipedia.net/leagueoflegends/LEC/2026/Spring"'
+            ),
         )
         parser.add_argument(
             '--pause',
@@ -417,7 +430,34 @@ class Command(BaseCommand):
         # settle before we start the next one.
         inter_tournament_pause = options['pause']
 
-        if options.get('all'):
+        if options.get('tournament'):
+            needle = options['tournament'].strip()
+            # Match by exact URL first, then partial name
+            if needle.startswith('http'):
+                tournaments = Tournament.objects.filter(liquipedia_url=needle)
+            else:
+                tournaments = Tournament.objects.filter(name__icontains=needle)
+            count = tournaments.count()
+            if count == 0:
+                self.stdout.write(self.style.ERROR(
+                    f"No tournament found matching {needle!r}. "
+                    f"Check the name or URL and try again."
+                ))
+                return
+            if count > 1:
+                self.stdout.write(self.style.WARNING(
+                    f"Found {count} tournaments matching {needle!r}:"
+                ))
+                for t in tournaments:
+                    self.stdout.write(f"  - {t.name} ({t.date_started})")
+                self.stdout.write(
+                    "Use a more specific name or the exact Liquipedia URL to narrow it down."
+                )
+                return
+            self.stdout.write(self.style.NOTICE(
+                f"Importing single tournament: {tournaments.first().name}"
+            ))
+        elif options.get('all'):
             tournaments = Tournament.objects.all().order_by('date_started')
             self.stdout.write(self.style.WARNING(
                 f"Importing ALL {tournaments.count()} tournaments. "
@@ -672,12 +712,33 @@ class Command(BaseCommand):
                                     self.stdout.write(self.style.NOTICE(
                                         f"  Renaming player '{player.name}' → '{nickname}'"
                                     ))
+                                    # Preserve the old name as an alias before renaming
+                                    old_name = player.name
                                     player.name = nickname
                                     player.slug = new_slug
                                     changed = True
-                            if aliases and player.aliases != ', '.join(aliases):
-                                player.aliases = ', '.join(aliases)
-                                changed = True
+                                    # Add old name to aliases if not already there
+                                    existing_aliases = [
+                                        a.strip() for a in (player.aliases or '').split(',')
+                                        if a.strip()
+                                    ]
+                                    if old_name not in existing_aliases:
+                                        existing_aliases.append(old_name)
+                                        player.aliases = ', '.join(existing_aliases)
+                            if aliases:
+                                # Merge Liquipedia aliases with any we already have,
+                                # preserving manually added ones (e.g. old names)
+                                existing_aliases = [
+                                    a.strip() for a in (player.aliases or '').split(',')
+                                    if a.strip()
+                                ]
+                                merged = list(dict.fromkeys(aliases + [
+                                    a for a in existing_aliases if a not in aliases
+                                ]))
+                                new_aliases_str = ', '.join(merged)
+                                if player.aliases != new_aliases_str:
+                                    player.aliases = new_aliases_str
+                                    changed = True
                             # Store lp_slug for future disambiguation
                             if lp_slug and hasattr(Player, 'lp_slug'):
                                 if getattr(player, 'lp_slug', None) != lp_slug:

@@ -6,7 +6,7 @@ from datetime import date, datetime, timedelta, time as dt_time
 import difflib
 from django.utils import timezone
 from django.core.management.base import BaseCommand
-from django.db import transaction
+from django.db import transaction, connection
 from django.db.models import Q
 from esport.models import Champion, Game, Match, MatchDay, PlayerStats, Roster, RosterPlayer, Tournament
 from esport.utils import normalize_team_name
@@ -137,7 +137,10 @@ def resolve_gol_url(session, tournament_name, year):
 # ---------------------------------------------------------------------------
 
 HEADERS = {'User-Agent': 'Mozilla/5.0'}
-REQUEST_DELAY = 1.0   # seconds between gol.gg requests
+REQUEST_DELAY  = 5.0                   # seconds between every gol.gg request
+RETRY_DELAYS   = [30, 60, 120]         # back-off on timeout / 429
+# Tuple: (connect timeout, read timeout) — covers both failure modes
+TIMEOUT        = (15, 45)
 
 
 # ---------------------------------------------------------------------------
@@ -145,11 +148,51 @@ REQUEST_DELAY = 1.0   # seconds between gol.gg requests
 # ---------------------------------------------------------------------------
 
 def gol_get(session, url):
-    """GET a gol.gg URL with a polite delay."""
-    time.sleep(REQUEST_DELAY)
-    res = session.get(url, headers=HEADERS, timeout=15)
-    res.raise_for_status()
-    return res
+    """
+    GET a gol.gg URL with a polite delay and automatic retry on:
+      - ConnectTimeout / ReadTimeout / RemoteDisconnected
+      - HTTP 429 (explicit rate limit)
+
+    Uses a (connect, read) timeout tuple so both failure modes are covered.
+    Raises requests.RequestException after all retries are exhausted.
+    """
+    for attempt, backoff in enumerate([0] + RETRY_DELAYS):
+        if backoff:
+            print(f"  [gol.gg] rate limited — waiting {backoff}s (attempt {attempt + 1}/{len(RETRY_DELAYS)})...")
+            time.sleep(backoff)
+        else:
+            time.sleep(REQUEST_DELAY)
+        try:
+            res = session.get(url, headers=HEADERS, timeout=TIMEOUT)
+            if res.status_code == 429:
+                # Explicit rate limit — always retry with backoff
+                if attempt < len(RETRY_DELAYS):
+                    continue
+                res.raise_for_status()
+            res.raise_for_status()
+            return res
+        except (
+            requests.exceptions.ConnectTimeout,
+            requests.exceptions.ReadTimeout,
+            requests.exceptions.ConnectionError,  # covers RemoteDisconnected
+        ):
+            if attempt < len(RETRY_DELAYS):
+                print(f"  [gol.gg] connection error, will retry after backoff...")
+                continue
+            raise
+
+
+def ensure_db_connection():
+    """
+    Force-close the DB connection so Django opens a fresh one on the next
+    query. Called after any long gol.gg wait (30-120s backoff) to prevent
+    'SSL connection has been closed unexpectedly' from PostgreSQL.
+
+    connection.ensure_connection() is not enough — it only pings but won't
+    recover a connection that PostgreSQL has already killed server-side.
+    Unconditional close() is safe: Django will reconnect automatically.
+    """
+    connection.close()
 
 
 def fix_champion(name):
@@ -390,12 +433,18 @@ def save_game_and_stats(game_data, match, game_number, normalized_champions,
 def import_game(session, link, match, game_number, normalized_champions,
                 roster_player_map, summary):
     parsed = scrape_game_stats(session, link)
+    # Scraping may have spent 30-120s in backoff — reconnect before writing
+    ensure_db_connection()
     if parsed is None:
         summary['errors'] += 1
+        try:
+            match_str = str(match)
+        except Exception:
+            match_str = f"match_id={match.pk}"
         summary['error_details'].append({
             "type": "scrape_failed",
             "link": link,
-            "match": str(match),
+            "match": match_str,
             "game_number": game_number,
         })
         return
@@ -537,102 +586,115 @@ class Command(BaseCommand):
 
             print_progress(0, total_rows, tournament.name)
             for row_idx, row in enumerate(rows, start=1):
+                # --- Phase 1: parse HTML row (no DB, no network) ---
+                cols = row.find_all('td')
+                if not cols:
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                patch = cols[-2].get_text(strip=True)
+                if not patch and tournament.date_ended > date.today():
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                try:
+                    date_match = datetime.strptime(
+                        cols[-1].get_text(strip=True), "%Y-%m-%d"
+                    ).date()
+                except ValueError as e:
+                    self.stdout.write(self.style.WARNING(
+                        f"  [SKIP] date parse failed: {cols[-1].get_text(strip=True)!r} ({e})"
+                    ))
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                match_ref = cols[0].find('a')
+                if not match_ref:
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                match_url = (
+                    match_ref['href']
+                    .replace("..", "https://gol.gg")
+                    .replace("summary/", "game/")
+                )
+
+                score_str = cols[2].get_text(strip=True)
+                victory_td = row.find('td', class_="text_victory")
+                if not victory_td:
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                # --- Phase 2: network calls to gol.gg (outside any atomic) ---
+                try:
+                    blue_team_str, red_team_str = get_teams(
+                        session,
+                        match_ref['href'].replace("..", "https://gol.gg"),
+                    )
+                except (ValueError, requests.RequestException) as e:
+                    self.stdout.write(self.style.WARNING(f"  get_teams failed: {e}"))
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                winner_str = normalize_team_name(victory_td.get_text())
+                score_match = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
+                if not score_match:
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                # Resolve rosters (in-memory, no DB)
+                blue_roster = find_closest_team_roster(blue_team_str, normalized_map)
+                if not blue_roster:
+                    blue_roster = find_closest_team_roster(blue_team_str, normalized_slug_map)
+                if not blue_roster:
+                    self.stdout.write(self.style.WARNING(
+                        f"  Roster not found for: {blue_team_str}"
+                    ))
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                red_roster = find_closest_team_roster(red_team_str, normalized_map)
+                if not red_roster:
+                    red_roster = find_closest_team_roster(red_team_str, normalized_slug_map)
+                if not red_roster:
+                    self.stdout.write(self.style.WARNING(
+                        f"  Roster not found for: {red_team_str}"
+                    ))
+                    print_progress(row_idx, total_rows, tournament.name)
+                    continue
+
+                if blue_team_str == winner_str:
+                    winner = blue_roster
+                    winner_score = int(score_match.group(1))
+                    loser = red_roster
+                    loser_score = int(score_match.group(2))
+                else:
+                    winner = red_roster
+                    winner_score = int(score_match.group(2))
+                    loser = blue_roster
+                    loser_score = int(score_match.group(1))
+
+                best_of = 2 * winner_score - 1
+                number_of_games = winner_score + loser_score
+
+                # --- Phase 3: DB writes for match metadata (short atomic) ---
+                ensure_db_connection()
                 with transaction.atomic():
-                    cols = row.find_all('td')
-                    if not cols:
-                        continue
-
-                    # Skip rows with no patch (match not yet played)
-                    patch = cols[-2].get_text(strip=True)
-                    if not patch and tournament.date_ended > date.today():
-                        continue
-
-                    # Parse date
-                    try:
-                        date_match = datetime.strptime(
-                            cols[-1].get_text(strip=True), "%Y-%m-%d"
-                        ).date()
-                    except ValueError as e:
-                        self.stdout.write(self.style.WARNING(
-                            f"  [SKIP] date parse failed: {cols[-1].get_text(strip=True)!r} ({e})"
-                        ))
-                        continue
-
                     matchday, _ = MatchDay.objects.get_or_create(
                         date=date_match,
                         tournament=tournament,
                     )
 
-                    match_ref = cols[0].find('a')
-                    if not match_ref:
-                        continue
-
-                    match_url = (
-                        match_ref['href']
-                        .replace("..", "https://gol.gg")
-                        .replace("summary/", "game/")
-                    )
-
-                    try:
-                        blue_team_str, red_team_str = get_teams(
-                            session,
-                            match_ref['href'].replace("..", "https://gol.gg"),
-                        )
-                    except (ValueError, requests.RequestException) as e:
-                        self.stdout.write(self.style.WARNING(f"  get_teams failed: {e}"))
-                        continue
-
-                    score_str = cols[2].get_text(strip=True)
-                    victory_td = row.find('td', class_="text_victory")
-                    if not victory_td:
-                        continue  # match not finished
-
-                    # Resolve rosters
-                    blue_roster = find_closest_team_roster(blue_team_str, normalized_map)
-                    if not blue_roster:
-                        blue_roster = find_closest_team_roster(blue_team_str, normalized_slug_map)
-                    if not blue_roster:
-                        self.stdout.write(self.style.WARNING(
-                            f"  Roster not found for: {blue_team_str}"
-                        ))
-                        continue
-
-                    red_roster = find_closest_team_roster(red_team_str, normalized_map)
-                    if not red_roster:
-                        red_roster = find_closest_team_roster(red_team_str, normalized_slug_map)
-                    if not red_roster:
-                        self.stdout.write(self.style.WARNING(
-                            f"  Roster not found for: {red_team_str}"
-                        ))
-                        continue
-
-                    winner_str = normalize_team_name(victory_td.get_text())
-                    score_match = re.match(r"(\d+)\s*-\s*(\d+)", score_str)
-                    if not score_match:
-                        continue
-
-                    if blue_team_str == winner_str:
-                        winner = blue_roster
-                        winner_score = int(score_match.group(1))
-                        loser = red_roster
-                        loser_score = int(score_match.group(2))
-                    else:
-                        winner = red_roster
-                        winner_score = int(score_match.group(2))
-                        loser = blue_roster
-                        loser_score = int(score_match.group(1))
-
-                    best_of = 2 * winner_score - 1
-                    number_of_games = winner_score + loser_score
-
-                    # Find or create the Match
-                    match = Match.objects.filter(
+                    match = Match.objects.select_related(
+                        'match_day__tournament',
+                        'blue_roster__team',
+                        'red_roster__team',
+                    ).filter(
                         Q(match_day=matchday, blue_roster=blue_roster, red_roster=red_roster) |
                         Q(match_day=matchday, blue_roster=red_roster, red_roster=blue_roster)
                     ).first()
 
                     if match:
-                        # Update existing match with final result
                         match.score_str = score_str
                         match.winner = winner
                         match.is_closed = True
@@ -644,7 +706,6 @@ class Command(BaseCommand):
                             )
                         match.save()
                     elif tournament.date_ended <= date.today():
-                        # Finished tournament with no pre-existing match — create it
                         match_name = (
                             f"{blue_roster.team.name} VS "
                             f"{red_roster.team.name} ({tournament.name})"
@@ -668,32 +729,35 @@ class Command(BaseCommand):
                     else:
                         self.stdout.write(
                             f"  [SKIP] {blue_team_str} VS {red_team_str} "
-                            f"on {date_match} — match not in DB and tournament not finished."
+                            f"on {date_match} — not in DB and tournament not finished."
                         )
+                        print_progress(row_idx, total_rows, tournament.name)
                         continue
 
-                    # Import individual games
-                    if match.best_of == 1:
+                # --- Phase 4: per-game network + DB (each game is independent) ---
+                # ensure_db_connection() is called inside import_game, after
+                # scraping, so no atomic block is open when the connection drops.
+                if match.best_of == 1:
+                    import_game(
+                        session, match_url, match, 1,
+                        normalized_champions, roster_player_map, summary,
+                    )
+                else:
+                    for i in range(number_of_games):
+                        try:
+                            game_url = get_game_link(session, match_url, i)
+                        except (ValueError, requests.RequestException, IndexError) as e:
+                            self.stdout.write(self.style.WARNING(
+                                f"  get_game_link failed for game {i+1}: {e}"
+                            ))
+                            summary['errors'] += 1
+                            continue
                         import_game(
-                            session, match_url, match, 1,
+                            session, game_url, match, i + 1,
                             normalized_champions, roster_player_map, summary,
                         )
-                    else:
-                        for i in range(number_of_games):
-                            try:
-                                game_url = get_game_link(session, match_url, i)
-                            except (ValueError, requests.RequestException, IndexError) as e:
-                                self.stdout.write(self.style.WARNING(
-                                    f"  get_game_link failed for game {i+1}: {e}"
-                                ))
-                                summary['errors'] += 1
-                                continue
-                            import_game(
-                                session, game_url, match, i + 1,
-                                normalized_champions, roster_player_map, summary,
-                            )
 
-                    summary['matches_processed'] += 1
+                summary['matches_processed'] += 1
                 print_progress(row_idx, total_rows, tournament.name)
 
             # Move to next line after the progress bar finishes

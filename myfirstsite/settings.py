@@ -116,8 +116,8 @@ DATABASE_URL = config('DATABASE_URL', default='sqlite:///db.sqlite3')
 DATABASES = {
     "default": dj_database_url.parse(
         DATABASE_URL,
-        conn_max_age=600,
-        ssl_require=not DEBUG  
+        conn_max_age=0,
+        ssl_require=not DEBUG,
     )
 }
 
