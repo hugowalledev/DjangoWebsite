@@ -1,3 +1,10 @@
+"""
+Data models for the Pronostiqueurs All-Star e-sports prediction platform.
+
+Covers the full hierarchy: Tournament → MatchDay → Match → Game → PlayerStats,
+plus the prediction/fantasy-pick system (Prediction, MVPDayVote).
+"""
+
 from .utils import OverwriteStorage
 from django.db import models
 from datetime import datetime, timedelta
@@ -8,6 +15,7 @@ from django.utils.deconstruct import deconstructible
 overwrite_storage = OverwriteStorage()
 
 class Tournament(models.Model):
+    """A League of Legends tournament (e.g. LEC Spring 2024). Rosters and MatchDays hang off this."""
     name = models.CharField(max_length=255)
     league = models.CharField(max_length=255, blank=True, null=True)
     split = models.CharField(max_length=255, blank=True, null=True)
@@ -29,6 +37,7 @@ class Tournament(models.Model):
         return self.name
 
 class Team(models.Model):
+    """An e-sports organisation. Teams compete across multiple tournaments via Rosters."""
     name = models.CharField(max_length=255)
     region = models.CharField(max_length=255)
     logo = models.ImageField(upload_to="teams", storage=overwrite_storage)
@@ -39,6 +48,7 @@ class Team(models.Model):
         return self.name
 
 class Player(models.Model):
+    """An individual pro player. Linked to Rosters via RosterPlayer; lp_slug maps to Liquipedia."""
     name = models.CharField(max_length=255)
     aliases = models.CharField(max_length=255, blank=True, default="")
     fullname = models.CharField(max_length=255, blank=True)
@@ -50,6 +60,7 @@ class Player(models.Model):
         return f"{self.name}"
 
 class Roster(models.Model):
+    """A team's lineup for a specific tournament and year. One Team can have many Rosters over time."""
     team = models.ForeignKey(Team, on_delete=models.CASCADE)
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE)
     year = models.PositiveIntegerField()
@@ -65,6 +76,7 @@ class Roster(models.Model):
         return f"{self.team.name} ({self.tournament.name} {self.year})"
 
 class RosterPlayer(models.Model):
+    """Join table between Roster and Player. Tracks role and starter/sub status."""
     roster = models.ForeignKey('Roster', on_delete=models.CASCADE, related_name='roster_players')
     player = models.ForeignKey('Player', on_delete=models.CASCADE)
     is_starter = models.BooleanField(default=True)
@@ -74,6 +86,7 @@ class RosterPlayer(models.Model):
         unique_together = ('roster', 'player')
 
 class MatchDay(models.Model):
+    """A single day of play within a tournament. Defines the point values awarded for that day's predictions."""
     date = models.DateField()
     tournament = models.ForeignKey(Tournament, on_delete=models.CASCADE, related_name="days")
     points_winner = models.PositiveSmallIntegerField(default=30)
@@ -85,6 +98,12 @@ class MatchDay(models.Model):
         return f"{self.date} - {self.tournament.name}"
 
 class Match(models.Model):
+    """
+    A best-of series between two Rosters on a MatchDay.
+
+    scheduled_time is derived from match_day.date + scheduled_hour on save.
+    winner/loser/score fields are populated when the match is closed by an admin.
+    """
     name = models.CharField(max_length=255)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE, related_name="matches")
     scheduled_hour = models.TimeField(null=True, blank=True)
@@ -119,6 +138,7 @@ class Match(models.Model):
         super().save(*args, **kwargs)
 
 class Game(models.Model):
+    """One individual game within a Match (e.g. Game 2 of a BO3). side_swapped=True means teams swapped blue/red from the match default."""
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
     winner = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_winner")
     loser = models.ForeignKey(Roster, on_delete=models.CASCADE, null = True, related_name="game_loser")
@@ -131,6 +151,7 @@ class Game(models.Model):
         unique_together = ('match', 'game_number')
 
 class PlayerStats(models.Model):
+    """KDA stats for a single player in a single Game. Used to calculate MVP fantasy scores."""
     roster_player = models.ForeignKey(RosterPlayer, on_delete=models.CASCADE)
     game = models.ForeignKey(Game, on_delete=models.CASCADE, null=True)
     champion = models.ForeignKey('Champion', on_delete=models.SET_NULL, null=True, blank=True, related_name="playerstats")
@@ -139,6 +160,7 @@ class PlayerStats(models.Model):
     assists = models.PositiveIntegerField(default=0)
 
     def kda(self):
+        """Returns (kills + assists) / max(1, deaths) to avoid division by zero."""
         return (self.kills + self.assists) / max(1, self.deaths)
 
     def __str__(self):
@@ -146,6 +168,7 @@ class PlayerStats(models.Model):
     
 
 class Champion(models.Model):
+    """A League of Legends champion, imported from the Riot Data Dragon API."""
     name = models.CharField(max_length=50, unique=True)
     image = models.ImageField(upload_to="champions", blank=True, null=True, storage=overwrite_storage)
 
@@ -156,6 +179,7 @@ from users.models import UserProfile
 
 
 class Prediction(models.Model):
+    """A user's prediction for a Match: who wins and the exact score (e.g. '2 - 1'). One per user per match."""
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     match = models.ForeignKey(Match, on_delete=models.CASCADE)
 
@@ -179,6 +203,11 @@ class Prediction(models.Model):
         return None
 
     def calculate_points(self):
+        """
+        Awards points_winner if the predicted winner is correct.
+        Awards points_score if the exact score matches (order-insensitive via reversed_score_str).
+        Both values come from the MatchDay, so they can vary between days.
+        """
         matchday = self.match.match_day
         points = 0
 
@@ -192,6 +221,12 @@ class Prediction(models.Model):
 
 
 class MVPDayVote(models.Model):
+    """
+    A user's fantasy pick for a MatchDay: one RosterPlayer whose KDA across all games that day earns points.
+
+    reset_id tracks the current pick period — when an admin resets picks, reset_id increments
+    and all old votes become read-only history.
+    """
     user = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
     match_day = models.ForeignKey(MatchDay, on_delete=models.CASCADE)
     fantasy_pick = models.ForeignKey(RosterPlayer, on_delete=models.CASCADE)
@@ -201,6 +236,7 @@ class MVPDayVote(models.Model):
     class Meta:
         unique_together = ("user", "match_day", "fantasy_pick", "reset_id")
     def calculate_points(self):
+        """Sums the KDA of the picked player across every game played on this MatchDay."""
         player_stats = PlayerStats.objects.filter(
             roster_player=self.fantasy_pick,
             game__match__match_day=self.match_day
@@ -209,5 +245,6 @@ class MVPDayVote(models.Model):
         return total_kda
 
 class MVPResetState(models.Model):
+    """Tracks the current reset_id per tournament. Incrementing reset_id invalidates all existing MVPDayVotes for new picks."""
     tournament = models.OneToOneField(Tournament, on_delete=models.CASCADE)
     reset_id = models.PositiveIntegerField(default=0)

@@ -1,3 +1,5 @@
+"""Views for the Pronostiqueurs All-Star platform: tournament browsing, match prediction, fantasy MVP picks, leaderboards, and match detail stats."""
+
 from collections import defaultdict, OrderedDict
 import datetime
 from datetime import date, timedelta
@@ -13,7 +15,13 @@ from django.utils.decorators import method_decorator
 from .utils import get_possible_scores 
 
 def get_leaderboard(tournament):
-    # Only users who have at least one Prediction or MVPDayVote for this tournament
+    """
+    Returns a ranked list of dicts for all users who participated in a tournament.
+
+    Each entry: {'user', 'points', 'match_points', 'mvp_points'}.
+    Only users with at least one Prediction or MVPDayVote are included.
+    Sorted descending by total points.
+    """
     prediction_users = set(
         Prediction.objects.filter(
             match__match_day__tournament=tournament
@@ -62,6 +70,7 @@ def get_leaderboard(tournament):
 
 
 class TournamentListView(generic.TemplateView):
+    """Home view listing ongoing tournaments and past tournaments grouped by year."""
     template_name = "esport/events.html"
 
     def get_context_data(self, **kwargs):
@@ -79,15 +88,19 @@ class TournamentListView(generic.TemplateView):
 
         tournaments_by_year = defaultdict(list)
         for t in tournaments_past:
-            year = t.date_ended.year  # assure compatibilité timezone
+            year = t.date_ended.year  # assure timezone compatibility
             tournaments_by_year[year].append(t)
 
-        # Trie les années dans l'ordre décroissant
+        # Sort years descending
         context['tournaments_by_year'] = sorted(tournaments_by_year.items(), reverse=True)
 
         return context
 
 def matchlist(request, tournament_league, tournament_year, tournament_split=None):
+    """
+    Main tournament page: upcoming matches with prediction status, past matches grouped by day,
+    and the current leaderboard. Handles both split and non-split tournament URLs.
+    """
     if tournament_split != None:
         tournament = get_object_or_404(Tournament, league=tournament_league, year=tournament_year, split=tournament_split)
     else:
@@ -145,6 +158,7 @@ def matchlist(request, tournament_league, tournament_year, tournament_split=None
     })
 
 class PredictionView(LoginRequiredMixin, View):
+    """Handles viewing and submitting match predictions and daily fantasy MVP picks."""
     def get(self, request, slug):
         tournament = get_object_or_404(Tournament, slug=slug)
         today = timezone.now().date()
@@ -208,6 +222,12 @@ class PredictionView(LoginRequiredMixin, View):
         return render(request, "esport/fantasy.html", context)
 
     def post(self, request, slug):
+        """
+        Saves predictions and MVP picks for all upcoming matchdays in one form submission.
+
+        Validates that the same player isn't picked as MVP for multiple days in the same reset period
+        before upserting Prediction and MVPDayVote records.
+        """
         # Redirect if not authenticated
         if not request.user.is_authenticated:
             return redirect(f"{reverse('account_login')}?next={request.path}")
@@ -300,6 +320,11 @@ from django.shortcuts import render, get_object_or_404
 from esport.models import Match, Game, PlayerStats, RosterPlayer
 
 def match_detail(request, match_id):
+    """
+    Detail page for a single match: per-game stats split by blue/red side,
+    plus aggregated KDA totals across all games for each player.
+    side_swapped is respected so blue/red assignment is correct for each game.
+    """
     match = get_object_or_404(Match, id=match_id)
     games = Game.objects.filter(match=match).order_by('game_number')
 
@@ -352,6 +377,10 @@ def match_detail(request, match_id):
     return render(request, 'esport/match_detail.html', context)
 
 def tournament_scoreboard(request, slug):
+    """
+    Full scoreboard for a tournament: one row per user, one column per MatchDay,
+    showing prediction points, MVP points, and daily totals. Rows are ranked by total score.
+    """
     tournament = get_object_or_404(Tournament, slug=slug)
     matchdays = list(tournament.days.order_by('date'))
 
@@ -414,6 +443,7 @@ def tournament_scoreboard(request, slug):
     return render(request, 'esport/tournament_scoreboard.html', context)
 
 def roster_detail(request, team_slug, year, tournament_league, tournament_split):
+    """Team roster page for a specific tournament split: shows player lineup, upcoming matches, and past results."""
     now = timezone.now()
     roster = get_object_or_404(Roster.objects.select_related("team", "tournament"),
         team__slug=team_slug,
