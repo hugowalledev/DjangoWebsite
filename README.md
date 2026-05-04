@@ -4,6 +4,7 @@
 ![Django](https://img.shields.io/badge/Django-5.2-green?logo=django)
 ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-blue?logo=postgresql)
 ![Deployed on Render](https://img.shields.io/badge/Deployed-Render-46E3B7?logo=render)
+![Tests](https://github.com/hugowalledev/djangowebsite/actions/workflows/tests.yml/badge.svg)
 
 Plateforme web de **pronostics e-sport** développée avec Django et TailwindCSS.  
 Les utilisateurs suivent les tournois, prédisent les résultats (vainqueur, score exact, MVP)
