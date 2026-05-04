@@ -35,7 +35,7 @@ class EsportViewsTestCase(TestCase):
             name="Test Tourney", league="LEC", year=2025, date_started=date.today(), date_ended=date.today() + timedelta(days=7), slug="test-tourney"
         )
         self.team1 = Team.objects.create(name="Team Alpha", region="TST", logo="teams/alpha.png", logo_dark="teams/alpha.png")
-        self.team2 = Team.objects.create(name="Team Beta", region="TST",, logo_dark="teams/beta.png")
+        self.team2 = Team.objects.create(name="Team Beta", region="TST",logo="teams/beta.png", logo_dark="teams/beta.png")
 
         self.roster1 = Roster.objects.create(team=self.team1, tournament=self.tournament, year=2025)
         self.roster2 = Roster.objects.create(team=self.team2, tournament=self.tournament, year=2025)
