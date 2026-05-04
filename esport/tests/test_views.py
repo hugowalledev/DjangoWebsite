@@ -32,10 +32,10 @@ class EsportViewsTestCase(TestCase):
 
         # Set up objects for tournaments, teams, rosters, players, matchdays, matches, etc.
         self.tournament = Tournament.objects.create(
-            name="Test Tourney", date_started=date.today(), date_ended=date.today() + timedelta(days=7), slug="test-tourney"
+            name="Test Tourney", league="LEC", year=2025, date_started=date.today(), date_ended=date.today() + timedelta(days=7), slug="test-tourney"
         )
-        self.team1 = Team.objects.create(name="Team Alpha", region="TST", logo="teams/alpha.png")
-        self.team2 = Team.objects.create(name="Team Beta", region="TST", logo="teams/beta.png")
+        self.team1 = Team.objects.create(name="Team Alpha", region="TST", logo="teams/alpha.png", logo_dark="teams/alpha.png")
+        self.team2 = Team.objects.create(name="Team Beta", region="TST",, logo_dark="teams/beta.png")
 
         self.roster1 = Roster.objects.create(team=self.team1, tournament=self.tournament, year=2025)
         self.roster2 = Roster.objects.create(team=self.team2, tournament=self.tournament, year=2025)
@@ -99,13 +99,13 @@ class EsportViewsTestCase(TestCase):
         response = self.client.get(reverse("esport:tournamentlist"))
         self.assertEqual(response.status_code, 200)
         self.assertIn("tournaments_going", response.context)
-        self.assertIn("tournaments_past", response.context)
+        self.assertIn("tournaments_by_year", response.context)
 
     def test_matchlist_view(self):
         """
         Test that the matchlist page loads upcoming and past matches, leaderboard, and user predictions.
         """
-        url = reverse("esport:matchlist", args=[self.tournament.slug])
+        url = reverse("esport:matchlist", kwargs={"tournament_league": self.tournament.league, "tournament_year": self.tournament.year})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 200)
         self.assertIn("upcoming_matches", response.context)
@@ -184,7 +184,7 @@ class EsportViewsTestCase(TestCase):
         """
         Ensure a 404 is returned if an invalid tournament slug is used.
         """
-        url = reverse("esport:matchlist", args=["does-not-exist"])
+        url = reverse("esport:matchlist",  kwargs={"tournament_league": "does-not-exist", "tournament_year": 9999})
         response = self.client.get(url)
         self.assertEqual(response.status_code, 404)
 
@@ -252,9 +252,9 @@ class EsportViewsTestCase(TestCase):
         """
         # Create a tournament with no matches
         t2 = Tournament.objects.create(
-            name="Empty Tourney", date_started=date.today(), date_ended=date.today() + timedelta(days=1), slug="empty"
+            name="Empty Tourney", league="LCK", year=2025, date_started=date.today(), date_ended=date.today() + timedelta(days=1), slug="empty"
         )
-        url_matchlist = reverse("esport:matchlist", args=[t2.slug])
+        url_matchlist = reverse("esport:matchlist", kwargs={"tournament_league": t2.tournament.league, "tournament_year": t2.tournament.year})
         url_scoreboard = reverse("esport:tournament_scoreboard", args=[t2.slug])
         response1 = self.client.get(url_matchlist)
         response2 = self.client.get(url_scoreboard)
@@ -268,7 +268,7 @@ class EsportViewsTestCase(TestCase):
         """
         Verify that the correct template is used for the matchlist view.
         """
-        url = reverse("esport:matchlist", args=[self.tournament.slug])
+        url = reverse("esport:matchlist", kwargs={"tournament_league": self.tournament.league, "tournament_year": self.tournament.year})
         response = self.client.get(url)
         self.assertTemplateUsed(response, "esport/matchlist.html")
 

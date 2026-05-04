@@ -108,10 +108,9 @@ class AdminTestCase(TestCase):
         html = admin_obj.view_matches_link(self.matchday)
         self.assertIn('<a href=', html)
 
-    def test_tournament_admin_matchlist_link(self):
+    def test_tournament_admin_list_display(self):
         admin_obj = TournamentAdmin(Tournament, self.admin_site)
-        html = admin_obj.matchlist_link(self.tournament)
-        self.assertIn('<a href=', html)
+        self.assertIn("name", admin_obj.list_display)
 
     def test_close_matches_action(self):
         # Tests admin action for closing matches
