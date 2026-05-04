@@ -254,7 +254,7 @@ class EsportViewsTestCase(TestCase):
         t2 = Tournament.objects.create(
             name="Empty Tourney", league="LCK", year=2025, date_started=date.today(), date_ended=date.today() + timedelta(days=1), slug="empty"
         )
-        url_matchlist = reverse("esport:matchlist", kwargs={"tournament_league": t2.tournament.league, "tournament_year": t2.tournament.year})
+        url_matchlist = reverse("esport:matchlist", kwargs={"tournament_league": t2.league, "tournament_year": t2.year})
         url_scoreboard = reverse("esport:tournament_scoreboard", args=[t2.slug])
         response1 = self.client.get(url_matchlist)
         response2 = self.client.get(url_scoreboard)
