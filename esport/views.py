@@ -314,7 +314,10 @@ class PredictionView(LoginRequiredMixin, View):
                         prediction.save()
 
         messages.success(request, "Your pronostics have been saved!")
-        return redirect("esport:matchlist", tournament_league=tournament.league, tournament_year=tournament.year, tournament_split=tournament.split)
+        if tournament.split:
+            return redirect("esport:matchlist", tournament_league=tournament.league, tournament_year=tournament.year, tournament_split=tournament.split)
+        else:
+            return redirect("esport:matchlist", tournament_league=tournament.league, tournament_year=tournament.year)
 
 from django.shortcuts import render, get_object_or_404
 from esport.models import Match, Game, PlayerStats, RosterPlayer
