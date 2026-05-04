@@ -32,7 +32,7 @@ class EsportViewsTestCase(TestCase):
 
         # Set up objects for tournaments, teams, rosters, players, matchdays, matches, etc.
         self.tournament = Tournament.objects.create(
-            name="Test Tourney", region="Test", date_started=date.today(), date_ended=date.today() + timedelta(days=7), slug="test-tourney"
+            name="Test Tourney", date_started=date.today(), date_ended=date.today() + timedelta(days=7), slug="test-tourney"
         )
         self.team1 = Team.objects.create(name="Team Alpha", region="TST", logo="teams/alpha.png")
         self.team2 = Team.objects.create(name="Team Beta", region="TST", logo="teams/beta.png")
@@ -252,7 +252,7 @@ class EsportViewsTestCase(TestCase):
         """
         # Create a tournament with no matches
         t2 = Tournament.objects.create(
-            name="Empty Tourney", region="Test", date_started=date.today(), date_ended=date.today() + timedelta(days=1), slug="empty"
+            name="Empty Tourney", date_started=date.today(), date_ended=date.today() + timedelta(days=1), slug="empty"
         )
         url_matchlist = reverse("esport:matchlist", args=[t2.slug])
         url_scoreboard = reverse("esport:tournament_scoreboard", args=[t2.slug])

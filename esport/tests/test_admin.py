@@ -30,7 +30,6 @@ class AdminTestCase(TestCase):
         cls.user = UserProfile.objects.create(username="testuser", email="test@example.com")
         cls.tournament = Tournament.objects.create(
             name="Worlds",
-            region="World",
             date_started=date.today(),
             date_ended=date.today(),
             slug="worlds"

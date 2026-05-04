@@ -25,7 +25,6 @@ class ModelTests(TestCase):
         # Create a tournament and teams
         self.tournament = Tournament.objects.create(
             name="Worlds 2025",
-            region="World",
             date_started=date.today(),
             date_ended=date.today(),
             slug="worlds-2025"
@@ -189,7 +188,6 @@ class ModelTests(TestCase):
         """
         tournament = Tournament.objects.create(
             name="Test Cup",
-            region="EU",
             date_started=date.today(),
             date_ended=date.today()
         )
